@@ -1,0 +1,53 @@
+server:
+  port: ${PORT:8088}
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json,application/xml,image/svg+xml
+
+spring:
+  application:
+    name: univ-bigdata-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/univ_bigdata_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      pool-name: UnivHikariPool
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+
+# MyBatis Plus 生产配置
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+  mapper-locations: classpath*:/mapper/**/*.xml
+
+# JWT 鉴权配置
+jwt:
+  secret: ${JWT_SECRET:dW5pdi1iaWdkYXRhLW5hdGlvbmFsLWNvbGxlZ2UtYW5hbHlzaXMtMjAyNg==}
+  expiration: 604800000
+  header: Authorization
+  token-prefix: "Bearer "
+
+# 平台业务与演示模式配置
+univ:
+  # 生产环境默认开启演示保护，拦截写操作
+  demo-mode: true
+
+logging:
+  level:
+    root: INFO
+    com.univ.bigdata: INFO

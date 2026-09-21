@@ -16,7 +16,12 @@
 [![Scikit-Learn](https://img.shields.io/badge/Scikit_Learn-1.4-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![Redis](https://img.shields.io/badge/Redis-7.0-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Render-brightgreen?logo=render&logoColor=white)](https://college-bigdata-analytics-platform.onrender.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
+> 🌐 **在线演示体验**：[https://college-bigdata-analytics-platform.onrender.com](https://college-bigdata-analytics-platform.onrender.com)  
+> 🚀 **零成本云原生容器化部署指南**：[DEPLOY.md](./DEPLOY.md)
 
 </div>
 
@@ -32,7 +37,7 @@
 - [六、系统工程结构](#六系统工程结构)
 - [七、快速开始与部署指南](#七快速开始与部署指南)
 - [八、数据流转与算法模型说明](#八数据流转与算法模型说明)
-- [九、毕业设计与学术规范说明](#九毕业设计与学术规范说明)
+- [九、数据合规与工程规范说明](#九数据合规与工程规范说明)
 - [十、License](#十license)
 
 ---
@@ -183,7 +188,7 @@ college-bigdata-analytics-platform/
 ├── sql/                           # 数据库脚本
 │   ├── 01_schema.sql              # 数据库表结构、外键与多维复合索引
 │   └── 02_init_data.sql           # 全国高校及历年录取初始化数据集
-├── 需求分析与技术方案.md           # 完整需求分析与毕业设计开题设计书
+├── 需求分析与技术方案.md           # 系统架构设计与多维数仓技术方案白皮书
 ├── 基于大数据的全国高校数据分析可视化平台原型图.html # 静态交互大屏原型
 └── README.md                      # 项目主文档
 ```
@@ -254,11 +259,11 @@ python train_predict_model.py
 
 ---
 
-## 九、毕业设计与学术规范说明
+## 九、数据合规与工程规范说明
 
-- 本项目为计算机科学与技术专业本科毕业设计标准示范工程，代码结构严谨规范，严格遵循阿里巴巴 Java 开发手册；
-- 采集与处理的所有全国高校数据均来源于各级教育主管部门公开通报与阳光招生平台公开数据，严格遵循数据合规与网络安全规范；
-- 架构设计已解耦为标准化模块，适合用于学术答辩报告、软件著作权申请以及毕业论文撰写。
+- 本工程严格对齐企业级工业化软件研发规范，分层清晰，遵循阿里巴巴 Java 开发手册与微服务架构最佳实践；
+- 采集与清洗的所有全国高校公开指标数据均来源于教育主管部门与阳光招生平台公开内容，严格遵循数据合规、Robots 协议与网络安全红线；
+- 系统已解耦为标准化数据流水线与可视化组件，提供完整的数仓分层、特征工程与模型评估断言。
 
 ---
 

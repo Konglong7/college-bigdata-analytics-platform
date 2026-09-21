@@ -268,20 +268,19 @@ public class RecommendServiceImpl implements RecommendService {
                 base = 605.0;
             } else if (level.contains("双一流")) {
                 base = 578.0;
-            } else if (level.contains("本科")) {
                 boolean isIndependentOrPrivate = nature.contains("民办")
                         || name.contains("独立学院")
                         || name.contains("应用技术学院")
-                        || name.contains("涉外")
+                        || name.contains("职业技术大学")
                         || name.contains("科技职业大学");
 
                 if (isIndependentOrPrivate) {
                     base = 458.0;
                 } else if (name.endsWith("大学")) {
-                    // 省属重点骨干公办大学 (如长沙理工大学、南华大学、湖南科技大学、湖南农业大学等)
+                    // 省属重点骨干公办大学
                     base = 546.0;
                 } else {
-                    // 省属公办学院 (如湖南第一师范学院、湖南文理学院、湖南警察学院、湖南工学院等)
+                    // 普通公办本科院校
                     base = 512.0;
                 }
 

@@ -1,0 +1,15 @@
+name: Render KeepAlive Heartbeat
+
+on:
+  schedule:
+    # 每 12 分钟执行一次轻量探测，防止 Render Free 容器 15 分钟休眠
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping College BigData Analytics Platform Render Service
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" -m 30 "https://college-bigdata-analytics-platform.onrender.com" || true

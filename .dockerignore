@@ -1,0 +1,10 @@
+.git
+.idea
+.vscode
+*.md
+frontend/node_modules
+frontend/dist
+backend/target
+crawler/venv
+crawler/__pycache__
+基于大数据的全国高校数据分析可视化平台原型图.html

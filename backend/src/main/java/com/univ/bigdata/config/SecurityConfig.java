@@ -33,9 +33,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // 放行认证相关接口
+                        // 1. 放行前端静态资源与 SPA 单页路由
+                        .requestMatchers("/", "/index.html", "/favicon.ico", "/china.json", "/vite.svg", "/assets/**").permitAll()
+                        .requestMatchers(request -> !request.getServletPath().startsWith("/api/")).permitAll()
+                        // 2. 放行认证相关接口
                         .requestMatchers("/api/auth/**").permitAll()
-                        // 放行所有大屏展示与公开数据查询 GET 接口
+                        // 3. 放行所有大屏展示与公开数据查询 GET 接口
                         .requestMatchers(HttpMethod.GET,
                                 "/api/dashboard/**",
                                 "/api/university/**",
@@ -46,11 +49,11 @@ public class SecurityConfig {
                                 "/api/predict/**",
                                 "/api/warehouse/**"
                         ).permitAll()
-                        // 放行志愿推荐与测算匹配接口
+                        // 4. 放行志愿推荐与测算匹配接口
                         .requestMatchers("/api/recommend/**").permitAll()
-                        // 生产环境后台管理员接口需 ROLE_ADMIN，开发阶段或通过角色放行
+                        // 5. 后台管理员接口需 ROLE_ADMIN
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
-                        // 其余请求需要认证
+                        // 6. 其余请求需要认证
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

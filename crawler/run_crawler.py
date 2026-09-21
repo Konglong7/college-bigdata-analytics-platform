@@ -149,7 +149,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-scores", action="store_true", help="跳过录取分数线抓取")
     parser.add_argument("--proxy", action="store_true", default=False, help="启用免费动态代理 IP 池")
     parser.add_argument("--full", action="store_true", default=False, help="全量采集全国 2900+ 所高校及详细档案")
-    parser.add_argument("--demo", action="store_true", default=False, help="启动答辩与现场演示模式 (自动新建独立测试数据库)")
+    parser.add_argument("--demo", action="store_true", default=False, help="启动快速验证与演示模式 (自动新建独立沙箱数据库)")
     parser.add_argument("--target-db", type=str, default="univ_demo_db", help="演示模式目标数据库名 (默认: univ_demo_db)")
     args = parser.parse_args()
 
