@@ -67,3 +67,11 @@ wheels/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# ==========================================
+# 本地开发期验证截图（保留在磁盘，但不纳入版本管理）
+# 对外展示用的截图统一放在 docs/screenshots/
+# ==========================================
+/view_*.png
+/check_*.png
+/current_view.png

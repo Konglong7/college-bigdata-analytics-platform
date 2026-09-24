@@ -19,12 +19,91 @@
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Render-brightgreen?logo=render&logoColor=white)](https://college-bigdata-analytics-platform.onrender.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-> 🌐 **在线演示体验**：[https://college-bigdata-analytics-platform.onrender.com](https://college-bigdata-analytics-platform.onrender.com)  
+> 🌐 **在线演示入口**：[https://college-bigdata-analytics-platform.onrender.com](https://college-bigdata-analytics-platform.onrender.com)  
+> 🔑 **演示管理员**：`admin` / `admin123` —— 登录页点击「一键体验演示账号」即可免输入直接进入  
 > 🚀 **零成本云原生容器化部署指南**：[DEPLOY.md](./DEPLOY.md)
 
 > **实现状态说明**：当前版本以 MySQL 直读、JWT 权限控制、预测结果展示和前端真实加载状态为答辩主线；Redis 缓存、EasyExcel/PDF 报表和批量导入属于后续扩展，不作为当前版本已交付能力宣称。README 中的性能数字只有在附带压测记录时才应更新。
 
+<img src="docs/demo-qrcode.png" alt="扫码在手机打开在线演示" width="140" />
+
+<sub>📱 手机扫码直接打开（微信 / 相机均可识别）</sub>
 </div>
+
+---
+
+## 📱 打开方式与体验说明
+
+> 无需账号即可浏览全部 12 个业务页面，「系统后台」需用上面的演示管理员登录。
+
+| 场景 | 说明 |
+| :--- | :--- |
+| **电脑端** | 直接打开上方链接进入 1920×1080 大屏驾驶舱；右上角「全屏」进入投屏汇报模式，「浅色 / 深色」可切换适合论文截图的白底主题 |
+| **手机端** | 布局自动切换为纵向流式：四张指标卡排为 2×2、地图与图表纵向堆叠、右上角汉堡按钮展开全部 11 个功能入口，竖屏即可阅读，无需横屏缩放 |
+| **是否需要账号** | **不需要**。仅「系统后台」要求登录，点击「一键体验演示账号」自动完成填写与登录 |
+| **首次打开较慢** | 演示服务托管于 Render 免费实例，闲置 15 分钟会休眠，首次唤醒约需 **30~60 秒**。页面会显示「云端演示服务正在唤醒」提示条并自动指数退避重试，**无需手动刷新**；之后再次打开即为秒开 |
+| **数据规模** | 34 所重点高校 × 历年录取 / 专业基准数据集（共 171 条记录），用于完整演示「采集 → 清洗 → 数仓分层 → 聚合 → 预测 → 大屏」链路 |
+
+---
+
+## 📸 界面预览
+
+<div align="center">
+  <img src="docs/screenshots/desktop-dashboard.png" alt="数据驾驶舱（桌面端）" width="860" />
+  <br /><sub>数据驾驶舱 · 全国高校分布热力图 + 专题图表联动矩阵</sub>
+</div>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/desktop-university.png" alt="高校多维检索" /></td>
+    <td width="50%" align="center"><img src="docs/screenshots/desktop-predict.png" alt="趋势预测" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>高校多维检索与画像入口</sub></td>
+    <td align="center"><sub>机器学习录取趋势预测</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/desktop-warehouse.png" alt="数仓四层分层" /></td>
+    <td width="50%" align="center"><img src="docs/screenshots/mobile-drawer.png" alt="移动端抽屉导航" width="240" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>数仓四层分层状态全景</sub></td>
+    <td align="center"><sub>手机端抽屉导航 · 11 个功能入口全部可达</sub></td>
+  </tr>
+</table>
+
+---
+
+## 🛠 演示环境工程化说明
+
+把项目从「本地能跑」推到「公网可演示」的过程中，集中处理了以下五类真实问题，均为可复现、可验证的改动：
+
+1. **冷启动竞态导致首屏全 0（根因修复）**
+   原先 `DatabaseInitializer` 实现的是 `CommandLineRunner`，而 Spring Boot 的启动顺序是
+   **先启动内嵌 Tomcat 接受连接，再回调 Runner**。实测日志：`17:47:40.994 Tomcat started`
+   → `17:47:41.798 DatabaseInitializer 开始建表`，中间约 0.9 秒（Render 0.1 核实例上更长）内
+   所有接口都抛 `Table "university" not found`，前端首屏因此渲染成一屏 0 数据。
+   现改为实现 `InitializingBean`，建表灌数发生在容器刷新阶段、端口监听之前，
+   服务**一旦可访问即数据可用**。
+2. **前端退避重试与唤醒可见性**
+   `utils/request.ts` 增加指数退避自动重试（1.5s → 24s，累计约 46s，仅针对 GET 幂等请求），
+   并把后端 `GlobalExceptionHandler` 统一包装的「HTTP 200 + code 500」也纳入重试判定；
+   同时新增全局「云端演示服务正在唤醒」提示条与加载态骨架，用户不再面对静止的 0 数据。
+3. **健康检查与保活**
+   新增 `/api/health` 端点，除进程状态外会真实探测业务表并返回 `universityRows` 与 `ready`，
+   用于识别「进程存活但数据层未就绪」的假健康状态；`render.yaml` 配置 `healthCheckPath` 指向它。
+   保活工作流同时改为校验 `"database":"UP"`，数据层异常时在 Actions 页面直接报红。
+4. **移动端适配**
+   桌面端 11 个导航项排在同一条不换行的 flex 行中，390px 手机上末尾两项会被挤出屏幕
+   （实测 left ≈ -115px）并与左侧菜单重叠；大屏经 `ScreenAdapter` 等比缩放后仅剩 20%，
+   正文字号约 2.3px。现为 `ScreenAdapter` 增加窄屏流式模式，配套汉堡抽屉导航、
+   `100dvh` 视口适配与 10 个二级页面的 `@media (max-width: 768px)` 堆叠规则。
+5. **CORS 配置踩坑与修正**
+   收紧为严格来源白名单后，浏览器对 POST 请求**即使同源也会携带 Origin 头**，
+   Spring 的 `CorsFilter` 会把应用自己前端发来的登录请求判为非法并返回 403。
+   实测对照：无 Origin → 200、白名单内 → 200、生产同源域名 → 403。
+   最终采用「关闭 CORS 凭据（本服务用 Bearer Token，不依赖 Cookie）+ 通配来源」，
+   既保留真实安全边界又不影响可用性。
 
 ---
 
@@ -204,12 +283,12 @@ college-bigdata-analytics-platform/
 ### 2. 数据库初始化
 1. 登录本地 MySQL 服务，新建数据库：
    ```sql
-   CREATE DATABASE univ_bigdata DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE univ_bigdata_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    ```
 2. 执行建表与初始化数据脚本：
    ```bash
-   mysql -u root -p univ_bigdata < sql/01_schema.sql
-   mysql -u root -p univ_bigdata < sql/02_init_data.sql
+   mysql -u root -p univ_bigdata_db < sql/01_schema.sql
+   mysql -u root -p univ_bigdata_db < sql/02_init_data.sql
    ```
 
 ### 3. 启动 Java 后端服务
@@ -218,9 +297,9 @@ cd backend
 # 使用 Maven 打包并跳过测试
 mvn clean package -DskipTests
 # 启动应用
-java -jar target/college-bigdata-backend-1.0.0.jar
+java -jar target/univ-bigdata-backend-1.0.0.jar
 ```
-后端默认运行在 `http://127.0.0.1:8080`。
+后端默认运行在 `http://127.0.0.1:8088`（生产 profile 使用内嵌 H2，零配置即可启动）。
 
 ### 4. 启动前端可视化系统
 ```bash
