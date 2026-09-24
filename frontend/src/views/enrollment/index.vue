@@ -323,4 +323,57 @@ onUnmounted(() => {
   gap: 12px;
   flex: 1;
 }
+/* =========================================================
+   移动端适配 (≤768px)：招生分析图表行由并排改为单列
+========================================================= */
+@media (max-width: 768px) {
+  .analysis-layout {
+    height: auto;
+    min-height: 100%;
+  }
+
+  /* 两个图表并排会各被压到 ~165px，移动端统一纵向排列 */
+  .analysis-row {
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* 取消卡片写死的 270px 最小高度，改由图表高度撑开 */
+  .analysis-row > .dv-border-box {
+    flex: none !important;
+    width: 100%;
+    min-height: auto !important;
+    padding: 12px;
+  }
+
+  /* ECharts 容器保留真实高度，否则自动高度卡片内会塌陷不可见 */
+  .chart-container {
+    flex: none;
+    height: 240px;
+    min-height: 240px;
+  }
+
+  /* 卡片标题较长时允许换行 */
+  :deep(.dv-title) {
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .title-text {
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+  }
+
+  .data-status {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .error-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
 </style>

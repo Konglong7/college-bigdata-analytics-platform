@@ -826,4 +826,120 @@ onUnmounted(() => {
     text-decoration: underline;
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：头部信息条与主体图表区全部单列堆叠
+========================================================= */
+@media (max-width: 768px) {
+  .detail-page {
+    height: auto;
+    min-height: 100%;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  /* 头部概况条：横向改纵向，避免校名、标签与按钮组互相挤压 */
+  .detail-header {
+    flex-direction: column !important;
+    align-items: stretch;
+    gap: 10px;
+    min-height: auto;
+    padding: 12px;
+  }
+
+  .u-logo-placeholder {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+
+  .title-row {
+    flex-wrap: wrap;
+    gap: 8px;
+
+    h2 { font-size: 17px; }
+  }
+
+  .u-detail-meta {
+    gap: 6px 12px;
+    font-size: 11.5px;
+  }
+
+  /* 源站直达按钮组：整行左对齐并允许换行 */
+  .header-link-group {
+    align-items: stretch;
+    flex-shrink: 1;
+  }
+
+  .link-buttons {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .site-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  /* 事实信息条：单列铺满，长地址不再被省略号截断 */
+  .factual-bar {
+    flex-direction: column !important;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: auto;
+    padding: 10px 12px;
+  }
+
+  .factual-item {
+    width: 100%;
+    font-size: 11.5px;
+
+    &.flex-2 {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .f-value { white-space: normal; }
+
+  /* 主体左右双栏（3.8 / 6.2）→ 单列，取消 520px 最小高度 */
+  .detail-content {
+    flex: none;
+    flex-direction: column;
+    min-height: auto;
+    gap: 10px;
+  }
+
+  .detail-left,
+  .detail-right {
+    flex: none;
+    width: 100%;
+    gap: 10px;
+  }
+
+  /* 右侧半宽双图并排 → 纵向 */
+  .detail-row-half {
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* ECharts 容器保留真实高度，避免在自动高度卡片里塌陷为 0 */
+  .detail-left .chart-container,
+  .detail-right .chart-container {
+    flex: none;
+    height: 240px !important; /* 覆盖投档线图表上的行内高度 */
+    min-height: 240px;
+  }
+
+  .chart-header-tip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    line-height: 1.45;
+  }
+
+  /* 简介正文允许完整展开，由外层统一滚动 */
+  .intro-box p { max-height: none; }
+}
 </style>

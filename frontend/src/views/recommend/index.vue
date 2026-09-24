@@ -1078,5 +1078,118 @@ html.light {
     }
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：筛选栏换行 + 冲稳保三泳道纵向堆叠
+========================================================= */
+@media (max-width: 768px) {
+  /* 根节点原为 overflow: hidden，筛选栏换行后会被裁掉 */
+  .recommend-page {
+    overflow: visible;
+    gap: 8px;
+  }
+
+  /* 筛选栏：取消写死的 64px 高度，让控件换行后自然撑高 */
+  .recommend-filter-bar {
+    height: auto;
+    padding: 10px 12px;
+    gap: 8px 12px;
+  }
+
+  .filter-item {
+    flex: 1 1 45%;
+    min-width: 0;
+    font-size: 12px;
+    gap: 4px;
+
+    .dv-select {
+      flex: 1;
+      min-width: 0;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+  }
+
+  .filter-label {
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .score-item {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .score-input {
+    width: 72px;
+    font-size: 14px;
+  }
+
+  .score-quick-tags { flex-wrap: wrap; }
+
+  .btn-match {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  /* 方案概要条：允许换行，避免提示文案与按钮重叠 */
+  .summary-bar {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 8px 12px;
+  }
+
+  .summary-chips { flex-wrap: wrap; }
+
+  .summary-tip {
+    flex: 1 1 100%;
+    margin-left: 0;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .summary-actions {
+    width: 100%;
+    margin-left: 0;
+
+    .btn-export-doc { width: 100%; }
+  }
+
+  /* 冲稳保三泳道 → 纵向堆叠，轨道内部滚动 */
+  .lanes-container {
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 62px; /* 给底部浮动对比栏留出空间 */
+  }
+
+  .lane-col { flex: none; }
+
+  .lane-scroll {
+    flex: none;
+    overflow-y: visible;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  /* 浮动对比工具栏：整行贴底并允许换行 */
+  .compare-float-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    transform: none;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 8px 12px;
+    border-radius: 12px;
+  }
+
+  .float-bar-info {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .bar-chips { flex-wrap: wrap; }
+
+  .float-bar-actions { margin-left: auto; }
+}
 </style>
 

@@ -1278,5 +1278,99 @@ html.light {
     }
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：搜索框与槽位卡片单列 + 矩阵横向滚动
+========================================================= */
+@media (max-width: 768px) {
+  .compare-page {
+    gap: 10px;
+    padding-bottom: 12px;
+  }
+
+  .compare-control-panel {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  /* 搜索框：取消 320px 最小宽度，改占满整行 */
+  .search-box {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .school-search-select {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .presets-group { gap: 6px; }
+
+  .preset-pill {
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  /* 开关与导出按钮：取消右推，允许换行 */
+  .compare-switches {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* 4 个对比槽位 → 单列铺满 */
+  .school-slots-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .school-slot-card {
+    min-height: 64px;
+    padding: 8px 10px;
+  }
+
+  /* 双图同屏并排 → 单列，图表容器保留真实高度 */
+  .compare-visual-section {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: auto;
+  }
+
+  .chart-box {
+    min-height: auto;
+    padding: 12px;
+  }
+
+  .chart-render-container {
+    height: 240px;
+    min-height: 240px;
+  }
+
+  /* 量化指标矩阵：外层横向滚动，首列吸附避免被裁 */
+  .matrix-scroll-wrapper {
+    max-height: 70vh;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .matrix-table {
+    min-width: 520px;
+    font-size: 11.5px;
+
+    th, td {
+      padding: 7px 8px;
+    }
+
+    .sticky-col {
+      width: auto;
+      min-width: 104px;
+    }
+
+    /* 窄列下角标会压住数值 */
+    .best-badge { display: none; }
+  }
+}
 </style>
 

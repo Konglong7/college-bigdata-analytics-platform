@@ -1,15 +1,15 @@
 <template>
-  <div ref="adapterWrapRef" class="screen-adapter-wrap">
+  <div ref="adapterWrapRef" class="screen-adapter-wrap" :class="{ 'is-flow': isFlow }">
     <div
       ref="adapterContentRef"
       class="screen-adapter-content"
       :style="contentStyle"
     >
-      <slot :scale="scale" :is-scaled="scaleMode === 'scale'" />
+      <slot :scale="scale" :is-scaled="scaleMode === 'scale' && !isFlow" :is-flow="isFlow" />
     </div>
 
     <!-- 底部视口缩放状态与自适应切换控件 (可视化大屏行业最佳实践与教学展示) -->
-    <div class="adapter-control-panel">
+    <div v-if="!isFlow" class="adapter-control-panel">
       <div class="adapter-status" :title="'基准设计稿: ' + width + '×' + height + '，当前渲染缩放因子: ' + scale.toFixed(2)">
         <span class="status-indicator"></span>
         <span class="status-text">{{ (scale * 100).toFixed(0) }}% 等比适配</span>
@@ -42,22 +42,32 @@ interface Props {
   height?: number
   /** 默认缩放模式: scale (等比例缩放保持宽高比) | stretch (自由铺满) */
   defaultMode?: 'scale' | 'stretch'
+  /**
+   * 窄屏流式模式阈值 (默认 900px)。
+   * 视口宽度小于等于该值时，放弃「整体等比缩放」改为纵向自然流式排布，
+   * 原因：1920 设计稿缩放到 390px 手机屏后缩放因子仅 0.2，
+   * 正文从 12px 变成约 2.3px，信息完全不可读，还不如让页面纵向滚动。
+   */
+  flowBreakpoint?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   width: 1920,
   height: 960,
-  defaultMode: 'scale'
+  defaultMode: 'scale',
+  flowBreakpoint: 900
 })
 
 const emit = defineEmits<{
   (e: 'resize', scale: number): void
+  (e: 'flow-change', isFlow: boolean): void
 }>()
 
 const adapterWrapRef = ref<HTMLElement | null>(null)
 const adapterContentRef = ref<HTMLElement | null>(null)
 const scale = ref<number>(1)
 const scaleMode = ref<'scale' | 'stretch'>(props.defaultMode)
+const isFlow = ref<boolean>(false)
 
 /**
  * 核心专业算法: 视口等比缩放因子计算 (Uniform Scale Factor Computation)
@@ -68,7 +78,7 @@ const calcScale = () => {
   const clientW = adapterWrapRef.value.clientWidth || window.innerWidth
   const clientH = adapterWrapRef.value.clientHeight || (window.innerHeight - 66)
 
-  if (scaleMode.value === 'stretch') {
+  if (scaleMode.value === 'stretch' || isFlow.value) {
     return 1
   }
 
@@ -76,6 +86,12 @@ const calcScale = () => {
   const scaleY = clientH / props.height
   // 取二者较小值，实现 Letterboxing/Pillarboxing (四周等比留白)，避免内容超出视口
   return Math.min(scaleX, scaleY)
+}
+
+/** 判定当前是否应进入窄屏流式模式 */
+const resolveFlow = () => {
+  const viewportW = adapterWrapRef.value?.clientWidth || window.innerWidth
+  isFlow.value = viewportW <= props.flowBreakpoint
 }
 
 /**
@@ -91,8 +107,13 @@ const debouncedResize = () => {
 }
 
 const updateScale = () => {
+  const wasFlow = isFlow.value
+  resolveFlow()
   scale.value = calcScale()
   emit('resize', scale.value)
+  if (wasFlow !== isFlow.value) {
+    emit('flow-change', isFlow.value)
+  }
 }
 
 const toggleScaleMode = () => {
@@ -102,8 +123,20 @@ const toggleScaleMode = () => {
   })
 }
 
-/** 动态计算容器样式 (CSS Transform Matrix) */
+/** 动态计算容器样式 (CSS Transform Matrix / 窄屏自然流式) */
 const contentStyle = computed(() => {
+  if (isFlow.value) {
+    // 窄屏：还原为文档流，宽度铺满、高度自适应，由父级滚动
+    return {
+      width: '100%',
+      height: 'auto',
+      transform: 'none',
+      position: 'relative' as const,
+      left: 'auto',
+      top: 'auto'
+    }
+  }
+
   if (scaleMode.value === 'stretch') {
     return {
       width: '100%',
@@ -133,17 +166,20 @@ onMounted(() => {
     updateScale()
   })
   window.addEventListener('resize', debouncedResize)
+  window.addEventListener('orientationchange', debouncedResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', debouncedResize)
+  window.removeEventListener('orientationchange', debouncedResize)
   if (timer) clearTimeout(timer)
 })
 
 defineExpose({
   updateScale,
   scale,
-  scaleMode
+  scaleMode,
+  isFlow
 })
 </script>
 
@@ -157,6 +193,14 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
+
+  /* 窄屏流式模式：解除居中与裁切，允许纵向滚动 */
+  &.is-flow {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 .screen-adapter-content {

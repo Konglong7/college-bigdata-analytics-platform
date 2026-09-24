@@ -882,4 +882,105 @@ html.light {
     }
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：侧边栏转横向标签栏 + 宽表格横向滚动
+========================================================= */
+@media (max-width: 768px) {
+  .admin-page { height: auto; }
+
+  /* 写死的 row!important 与 220px 侧边栏：移动端改为上下结构 */
+  .admin-layout {
+    flex-direction: column !important;
+    height: auto;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.15);
+
+    .sidebar-title {
+      flex-shrink: 0;
+      padding: 0 10px;
+      margin-bottom: 0;
+      border-bottom: none;
+      border-right: 1px solid rgba(0, 229, 255, 0.1);
+      font-size: 12px;
+    }
+  }
+
+  .admin-menu-item {
+    flex-shrink: 0;
+    padding: 8px 10px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  /* 内容区取消 overflow: hidden 与 100% 高度，交由外层滚动 */
+  .admin-content,
+  .sub-panel {
+    height: auto;
+    overflow: visible;
+  }
+
+  /* 工具栏：两端对齐改纵向排列，搜索框由行内 260px 改占满整行 */
+  .admin-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    > div {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .dv-input {
+      width: 100% !important;
+      min-width: 0;
+    }
+  }
+
+  /* 8 列宽表格：外层横向滚动，避免右侧列被裁掉 */
+  .admin-table-container {
+    flex: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .el-table {
+    min-width: 720px;
+
+    th, td {
+      padding: 8px 10px;
+    }
+  }
+
+  /* 分页栏允许换行，避免页码按钮被裁 */
+  .pagination-wrap {
+    justify-content: center;
+    flex-wrap: wrap;
+
+    :deep(.el-pagination) {
+      flex-wrap: wrap;
+      justify-content: center;
+      row-gap: 6px;
+    }
+  }
+
+  /* 弹窗宽度写死 550px，移动端收窄到视口 92%（弹窗被 teleport 到 body，需用 :global） */
+  :global(.el-dialog) {
+    --el-dialog-width: 92% !important;
+    width: 92% !important;
+    margin-top: 8vh;
+  }
+}
 </style>

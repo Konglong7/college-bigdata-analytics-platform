@@ -70,7 +70,20 @@
           <button class="dv-btn submit-btn" :disabled="loading" @click.prevent="handleSubmit">
             {{ loading ? '处理中...' : (isRegister ? '立即注册' : '登 录 系 统') }}
           </button>
+          <!-- HR 体验入口：一次点击完成「填账号 + 对齐验证码 + 登录」，无需任何手动输入 -->
+          <button
+            v-if="!isRegister"
+            class="dv-btn demo-btn"
+            :disabled="loading"
+            @click.prevent="handleDemoLogin"
+          >
+            一键体验演示账号（免输入）
+          </button>
         </div>
+
+        <p v-if="!isRegister" class="demo-hint">
+          演示账号 <b>admin</b> / <b>admin123</b>　·　仅「系统后台」需要登录，其余页面免登录浏览
+        </p>
 
         <div class="form-footer">
           <span class="toggle-link" @click="toggleMode">
@@ -108,6 +121,16 @@ const fillAdmin = () => {
   if (captchaRef.value) {
     form.captcha = captchaRef.value.getCode()
   }
+}
+
+/**
+ * 一键体验：填入演示账号 → 同步对齐当前验证码 → 直接提交登录。
+ * 验证码为纯前端 canvas 生成与本地校验，因此可以安全地自动对齐，
+ * 目的是让 HR 在手机上一次点击即可进入后台，而不是手工输入三项内容。
+ */
+const handleDemoLogin = () => {
+  fillAdmin()
+  handleSubmit()
 }
 
 const toggleMode = () => {
@@ -184,7 +207,7 @@ const handleSubmit = async () => {
 }
 
 .login-box {
-  width: 440px;
+  width: min(440px, calc(100vw - 24px));
   padding: 40px 36px;
   background: rgba(13, 22, 41, 0.9);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(56, 189, 248, 0.15);
@@ -352,6 +375,63 @@ const handleSubmit = async () => {
     &:hover {
       color: #fcd34d;
     }
+  }
+}
+
+/* 演示账号快捷入口：与主登录按钮形成明确的主次层级 */
+.demo-btn {
+  width: 100%;
+  height: 42px;
+  margin-top: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--primary-light);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px dashed rgba(56, 189, 248, 0.45);
+  transition: all 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.2);
+    border-style: solid;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.demo-hint {
+  margin-top: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-muted);
+
+  b {
+    color: var(--primary-light);
+    font-weight: 600;
+  }
+}
+
+/* 窄屏：卡片贴边会显得局促，收紧内边距与标题字号 */
+@media (max-width: 480px) {
+  .login-box {
+    padding: 28px 20px !important;
+  }
+
+  .login-header h2 {
+    font-size: 17px !important;
+    letter-spacing: 0.8px !important;
+  }
+
+  .form-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 }
 </style>

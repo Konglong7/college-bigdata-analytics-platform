@@ -289,4 +289,85 @@ onMounted(() => {
     font-size: 11.5px;
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：规模卡片单列 + 分层标题整行 + Schema 卡片堆叠
+========================================================= */
+@media (max-width: 768px) {
+  .warehouse-page {
+    height: auto;
+    min-height: 100%;
+    gap: 10px;
+  }
+
+  /* 顶部 4 张规模卡片：88px 固定高度横排会压扁数值，改纵向单列 */
+  .stat-banner {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .stat-card {
+    width: 100%;
+    min-height: 62px;
+    padding: 8px 12px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    margin-right: 12px;
+    font-size: 20px;
+  }
+
+  .stat-value { font-size: 19px; }
+
+  /* 数仓分层：左侧写死的 160px 标题改为整行标题在上 */
+  .dw-layer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .dw-layer-title {
+    width: 100%;
+    padding: 0 0 6px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 12px;
+  }
+
+  .dw-layer-content {
+    padding-left: 0;
+    gap: 6px;
+  }
+
+  .dw-table-tag {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .dw-arch-grid {
+    height: auto;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  /* 中部层级拓扑卡片：取消写死的 220px 最小高度，由内容撑开 */
+  .warehouse-page > .dv-border-box {
+    flex: none !important;
+    min-height: auto !important;
+    padding: 12px;
+  }
+
+  /* 底部 Schema 双卡并排 → 单列（该行只有行内样式，用 last-child 定位） */
+  .warehouse-page > div:last-child {
+    flex: none !important;
+    flex-direction: column;
+    min-height: auto !important;
+    gap: 10px;
+  }
+
+  .schema-field-list { font-size: 11.5px; }
+}
 </style>

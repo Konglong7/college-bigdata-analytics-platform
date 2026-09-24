@@ -950,4 +950,107 @@ html.light {
     }
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：统计卡单列 + 核验表横向滚动 + 底部图表堆叠
+========================================================= */
+@media (max-width: 768px) {
+  .collect-page {
+    height: auto;
+    gap: 10px;
+  }
+
+  /* 顶部 4 张监控卡：80px 固定高度塞 4 张会被压扁，改纵向单列 */
+  .stat-banner {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .stat-card {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 12px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+
+  .stat-value { font-size: 19px; }
+
+  /* 数据源卡片网格：取消 320px 最小列宽，避免超出可视宽度 */
+  .source-gateway-container {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 8px 0;
+  }
+
+  .gateway-card { padding: 10px 12px; }
+
+  .gateway-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* 源站核验表列数多：外层横向滚动，避免右侧列被裁掉 */
+  .verify-table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 0;
+  }
+
+  .verify-table-header,
+  .verify-row {
+    min-width: 760px;
+  }
+
+  .field-address { max-width: 100%; }
+
+  /* 底部日志 + 吞吐图并排 → 单列 */
+  .collect-bottom {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .collect-bottom > .dv-border-box {
+    flex: none !important;
+    width: 100%;
+    min-height: auto !important;
+    padding: 12px;
+  }
+
+  /* 日志区固定高度并内部滚动，避免整页被拉得过长 */
+  .log-stream-box {
+    height: 220px;
+    font-size: 11.5px;
+  }
+
+  /* 吞吐折线图保留真实高度 */
+  .chart-container {
+    flex: none;
+    height: 240px;
+    min-height: 240px;
+  }
+
+  :deep(.dv-title) {
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .title-text {
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+  }
+
+  .log-row {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 8px;
+  }
+
+  .log-time { margin-right: 8px; }
+}
 </style>

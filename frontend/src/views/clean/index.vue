@@ -477,4 +477,78 @@ html.light {
     }
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：统计卡单列 + ETL 节点收紧 + 底部三图堆叠
+========================================================= */
+@media (max-width: 768px) {
+  .clean-page {
+    height: auto;
+    gap: 10px;
+  }
+
+  /* 顶部 4 张清洗指标卡：80px 固定高度塞 4 张会挤压文字，改纵向单列 */
+  .stat-banner {
+    flex-direction: column;
+    height: auto;
+    gap: 10px;
+  }
+
+  .stat-card {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px 12px;
+  }
+
+  .stat-icon {
+    width: 38px;
+    height: 38px;
+    font-size: 20px;
+  }
+
+  .stat-value { font-size: 19px; }
+
+  /* ETL 流程节点：收紧内边距，保留原有横向滚动并可惯性滑动 */
+  .etl-flow-wrap {
+    padding: 0 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .etl-node {
+    min-width: 100px;
+    padding: 6px 10px;
+  }
+
+  .etl-node-header { font-size: 12px; }
+  .etl-node-sub { font-size: 10.5px; }
+
+  /* 底部三图并排 → 单列，图表容器保留真实高度 */
+  .clean-bottom {
+    flex-direction: column;
+    min-height: auto;
+    gap: 10px;
+  }
+
+  .clean-bottom > .dv-border-box {
+    flex: none !important;
+    width: 100%;
+    min-height: auto !important;
+    padding: 12px;
+  }
+
+  .chart-container {
+    flex: none;
+    height: 240px;
+    min-height: 240px;
+  }
+
+  :deep(.dv-title) {
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .title-text {
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+  }
+}
 </style>

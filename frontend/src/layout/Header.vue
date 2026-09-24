@@ -5,6 +5,24 @@
 
     <!-- 左侧导航区 -->
     <div class="header-left">
+      <!-- 移动端汉堡按钮（≤900px 显示，桌面上隐藏） -->
+      <button
+        class="mobile-nav-toggle"
+        :class="{ active: drawerOpen }"
+        :aria-expanded="drawerOpen"
+        title="展开功能导航"
+        @click="drawerOpen = !drawerOpen"
+      >
+        <svg v-if="!drawerOpen" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+        <svg v-else viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
       <nav class="nav-menu">
         <button
           v-for="item in leftNavs"
@@ -93,11 +111,50 @@
         </button>
       </div>
     </div>
+
+    <!-- 移动端抽屉导航：手机上 11 个功能入口的统一可达路径 -->
+    <transition name="drawer-fade">
+      <div v-if="drawerOpen" class="mobile-drawer">
+        <div class="drawer-mask" @click="drawerOpen = false"></div>
+        <nav class="drawer-panel">
+          <div class="drawer-header">
+            <span class="drawer-title">功能导航</span>
+            <span class="drawer-user">{{ username }}</span>
+          </div>
+
+          <div class="drawer-items">
+            <button
+              v-for="item in allNavs"
+              :key="item.path"
+              :class="['drawer-item', { active: isNavActive(item.path) }]"
+              @click="navigateFromDrawer(item.path)"
+            >
+              <span class="drawer-dot"></span>
+              <span>{{ item.name }}</span>
+            </button>
+          </div>
+
+          <div class="drawer-divider"></div>
+
+          <div class="drawer-tools">
+            <button class="tool-btn" @click="handleToggleFullscreen">
+              <span>{{ isFullscreen ? '退出全屏' : '全屏演示' }}</span>
+            </button>
+            <button class="tool-btn" @click="toggleTheme">
+              <span class="theme-icon">{{ currentTheme === 'dark' ? '☀️' : '🌙' }}</span>
+              <span>{{ currentTheme === 'dark' ? '浅色模式' : '深色模式' }}</span>
+            </button>
+          </div>
+
+          <button class="drawer-logout" @click="handleLogout">退出登录</button>
+        </nav>
+      </div>
+    </transition>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { currentTheme, toggleTheme } from '@/utils/theme'
@@ -123,6 +180,20 @@ const rightNavs = [
   { name: '数据仓库', path: '/warehouse' },
   { name: '系统后台', path: '/admin' }
 ]
+
+// 移动端抽屉导航状态
+const drawerOpen = ref(false)
+const allNavs = [...leftNavs, ...rightNavs]
+
+const navigateFromDrawer = (path: string) => {
+  drawerOpen.value = false
+  router.push(path)
+}
+
+// 路由切换后自动收起抽屉，避免遮挡内容
+watch(() => route.path, () => {
+  drawerOpen.value = false
+})
 
 // 全屏状态
 const isFullscreen = ref(false)
@@ -507,6 +578,219 @@ html.light {
   }
   .user-meta .user-name {
     display: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 移动端适配（≤900px）
+ * 问题背景：桌面上 11 个导航项排在同一条不换行的 flex 行里（nav-item 设了
+ * flex-shrink:0 + white-space:nowrap），390px 手机上后两项会被挤出屏幕左侧
+ * （实测 left ≈ -115px）且与左侧菜单重叠，导致「数据采集」「数据清洗」完全不可达。
+ * 方案：窄屏隐藏桌面导航，改用汉堡按钮 + 抽屉面板承载全部入口。
+ * ------------------------------------------------------------------------- */
+.mobile-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  margin-right: 6px;
+  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &.active {
+    color: var(--primary-light);
+    border-color: var(--primary-light);
+    background: rgba(14, 165, 233, 0.12);
+  }
+}
+
+.mobile-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+}
+
+.drawer-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 16, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+.drawer-panel {
+  position: relative;
+  width: min(78vw, 300px);
+  height: 100%;
+  padding: 14px 12px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-panel, #0d1629);
+  border-right: 1px solid var(--border-color);
+  box-shadow: 6px 0 28px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+
+  .drawer-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-main);
+    letter-spacing: 0.5px;
+  }
+
+  .drawer-user {
+    font-size: 11.5px;
+    color: var(--text-sub);
+  }
+}
+
+.drawer-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-sub);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s ease;
+
+  .drawer-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--border-color);
+    flex-shrink: 0;
+  }
+
+  &.active {
+    color: var(--primary-light);
+    background: rgba(14, 165, 233, 0.12);
+    border-color: rgba(14, 165, 233, 0.35);
+
+    .drawer-dot {
+      background: var(--primary-light);
+      box-shadow: 0 0 6px var(--primary-light);
+    }
+  }
+}
+
+.drawer-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 2px 0;
+}
+
+.drawer-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .tool-btn {
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
+
+.drawer-logout {
+  margin-top: auto;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--danger);
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.drawer-fade-enter-active,
+.drawer-fade-leave-active {
+  transition: opacity 0.2s ease;
+
+  .drawer-panel {
+    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+.drawer-fade-enter-from,
+.drawer-fade-leave-to {
+  opacity: 0;
+
+  .drawer-panel {
+    transform: translateX(-100%);
+  }
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    padding: 0 10px !important;
+  }
+
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  /* 桌面横向导航全部隐藏，入口统一收进抽屉 */
+  .header-left .nav-menu,
+  .header-right .nav-menu,
+  .header-divider,
+  .logout-btn {
+    display: none !important;
+  }
+
+  /* 中央标题在窄屏必须可截断，否则会顶开右侧工具区造成重叠 */
+  .header-center {
+    min-width: 0;
+    padding: 0 6px;
+
+    .brand-badge {
+      display: none !important;
+    }
+
+    .brand-title {
+      font-size: 13.5px !important;
+      max-width: 44vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .user-meta .user-name {
+    display: none !important;
+  }
+
+  .user-badge {
+    padding: 4px 6px !important;
   }
 }
 </style>

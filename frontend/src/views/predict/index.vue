@@ -339,4 +339,80 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--text-muted);
 }
+/* =========================================================
+   移动端适配 (≤768px)：预测图表行由并排改为单列
+========================================================= */
+@media (max-width: 768px) {
+  .predict-page {
+    height: auto;
+    gap: 10px;
+  }
+
+  /* 模型状态栏：模型参数与指标芯片换行排列 */
+  .model-spec-panel {
+    align-items: flex-start;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .spec-group {
+    gap: 4px 12px;
+    font-size: 12px;
+  }
+
+  .metrics-chips-wrap {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .metric-chip {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  /* 双图并排会各被压到 ~165px；底部行还写死了 270px 高度，需一并覆盖 */
+  .predict-row {
+    flex: none;
+    flex-direction: column;
+    height: auto !important;
+    gap: 10px;
+  }
+
+  .predict-row > .dv-border-box {
+    flex: none !important;
+    width: 100%;
+    min-height: auto !important;
+    padding: 12px;
+  }
+
+  /* ECharts 容器保留真实高度 */
+  .chart-container {
+    flex: none;
+    height: 240px;
+    min-height: 240px;
+  }
+
+  :deep(.dv-title) {
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .title-text {
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+  }
+
+  .data-status,
+  .data-source-note {
+    padding: 8px 12px;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .error-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
 </style>

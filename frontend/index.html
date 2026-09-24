@@ -2,11 +2,64 @@
 <html lang="zh-CN" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
     <title>全国高校大数据分析可视化平台</title>
+    <meta name="description" content="基于大数据的全国高校多维数据分析与预测可视化平台：高校全景画像、学科专业分析、历年录取趋势与机器学习预测。Spring Boot 3 + Vue 3 + ECharts 5 全栈实现，支持在线演示。" />
+    <meta name="keywords" content="高校数据分析,大数据可视化,数据仓库,机器学习预测,ECharts,Spring Boot,Vue3,数仓分层" />
+    <meta name="author" content="Konglong7" />
+    <meta name="theme-color" content="#070c18" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!-- 分享预览卡片：微信 / 领英 / QQ 等平台抓取使用 -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="全国高校大数据分析可视化平台" />
+    <meta property="og:title" content="全国高校大数据分析可视化平台 · 在线演示" />
+    <meta property="og:description" content="汇聚全国高校、学科专业与历年录取数据的全链路分析中台：数仓分层 + ETL 清洗 + 机器学习预测 + DataV 科技大屏。" />
+    <meta property="og:url" content="https://college-bigdata-analytics-platform.onrender.com/" />
+    <meta property="og:image" content="https://college-bigdata-analytics-platform.onrender.com/og-cover.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="全国高校大数据分析可视化平台 · 在线演示" />
+    <meta name="twitter:description" content="数仓分层 + ETL 清洗 + 机器学习预测 + DataV 科技大屏，Spring Boot 3 与 Vue 3 全栈实现。" />
+    <meta name="twitter:image" content="https://college-bigdata-analytics-platform.onrender.com/og-cover.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- 首屏占位：JS 资源下载与 Vue 挂载期间避免白屏（渲染后被 Vue 整体替换） -->
+      <div class="boot-splash">
+        <div class="boot-spinner"></div>
+        <p class="boot-title">全国高校大数据分析可视化平台</p>
+        <p class="boot-sub">正在加载可视化引擎…</p>
+      </div>
+    </div>
+    <style>
+      .boot-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: #070c18;
+        color: #e2e8f0;
+        font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      }
+      .boot-spinner {
+        width: 34px;
+        height: 34px;
+        border: 2px solid rgba(56, 189, 248, 0.2);
+        border-top-color: #38bdf8;
+        border-radius: 50%;
+        animation: boot-spin 0.9s linear infinite;
+      }
+      .boot-title { font-size: 15px; font-weight: 600; letter-spacing: 1px; margin: 0; }
+      .boot-sub { font-size: 12px; color: #7d8ea8; margin: 0; }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+    </style>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

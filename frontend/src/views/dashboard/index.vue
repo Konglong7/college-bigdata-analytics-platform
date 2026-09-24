@@ -1,7 +1,12 @@
 <template>
   <ScreenAdapter :width="1920" :height="980" @resize="handleScreenResize">
     <div class="dashboard-page">
-      <div v-if="dashboardLoad.state.value === 'error'" class="data-status error-status">
+      <!-- 加载态：冷启动唤醒期间给出确定性反馈，避免指标卡停留在 0 造成「系统坏了」的误判 -->
+      <div v-if="dashboardLoad.state.value === 'loading'" class="data-status loading-status">
+        <span class="status-spinner"></span>
+        <span>{{ serviceWaking ? '云端演示服务正在唤醒，首次打开约需 30~60 秒，请稍候…' : '大屏数据加载中…' }}</span>
+      </div>
+      <div v-else-if="dashboardLoad.state.value === 'error'" class="data-status error-status">
         {{ dashboardLoad.errorMessage.value }}
         <button class="dv-btn" @click="loadAllData">重试</button>
       </div>
@@ -124,6 +129,7 @@ import DvBorderBox from '@/components/DvBorderBox/index.vue'
 import { ensureChinaMap } from '@/utils/chinaMap'
 import { getChartTheme, onThemeChange } from '@/utils/theme'
 import { createLoadState } from '@/utils/loadState'
+import { serviceWaking } from '@/utils/request'
 import {
   getStatistics,
   getMapDistribution,
@@ -815,6 +821,27 @@ onUnmounted(() => {
   gap: 12px;
   color: var(--danger, #ff7875);
 }
+/* 加载态提示条与旋转指示器 */
+.loading-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--primary-light);
+}
+
+.status-spinner {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border: 2px solid rgba(56, 189, 248, 0.25);
+  border-top-color: var(--primary-light);
+  border-radius: 50%;
+  animation: status-spin 0.8s linear infinite;
+}
+
+@keyframes status-spin {
+  to { transform: rotate(360deg); }
+}
 </style>
 
 
@@ -959,6 +986,65 @@ html.light .switch-btn {
     color: #ffffff;
     border-color: #0284c7;
     box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 窄屏流式布局（≤900px）
+ * ScreenAdapter 在该宽度下已切换为「自然流式」模式（不再整体等比缩放），
+ * 因此这里把 1920 设计稿的横向三栏结构改写为纵向堆叠，
+ * 让手机端以真实字号呈现，靠纵向滚动浏览，而不是被压成 20% 的缩略图。
+ * ------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .dashboard-page {
+    width: 100%;
+    height: auto;
+    min-height: auto;
+    padding: 10px;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  /* 四张核心指标卡：1 行 4 列 → 2 × 2 栅格 */
+  .stat-banner {
+    height: auto;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .stat-card {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 0;
+    min-height: 76px;
+    padding: 0 12px;
+  }
+
+  /* 地图 / 类型结构、底部 4 张图表：全部纵向堆叠并锁定真实高度 */
+  .dashboard-middle,
+  .dashboard-bottom {
+    flex: none;
+    flex-direction: column;
+    min-height: 0;
+    gap: 10px;
+  }
+
+  .map-wrap,
+  .type-wrap {
+    flex: none;
+    width: 100%;
+    height: 300px;
+  }
+
+  .bottom-chart-box {
+    flex: none;
+    width: 100%;
+    height: 260px;
+  }
+
+  .data-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 </style>

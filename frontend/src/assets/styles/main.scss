@@ -147,6 +147,7 @@ body {
   background-size: 100% 100%, 100% 100%, 100% 100%, 48px 48px, 48px 48px;
   background-position: center top, center top, center top, center center, center center;
   height: 100vh;
+  height: 100dvh; /* 移动端工具栏收起/展开时跟随真实可视高度 */
   width: 100vw;
   overflow: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;

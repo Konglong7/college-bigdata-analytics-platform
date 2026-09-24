@@ -475,4 +475,67 @@ html.light {
     }
   }
 }
+/* =========================================================
+   移动端适配 (≤768px)：图表行由左右并排改为单列堆叠
+========================================================= */
+@media (max-width: 768px) {
+  .analysis-layout {
+    height: auto;
+    min-height: 100%;
+  }
+
+  /* 双图并排会各被压到 ~165px，移动端统一纵向排列 */
+  .analysis-row {
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* 取消卡片写死的 280px 最小高度，改由图表高度撑开 */
+  .analysis-row > .dv-border-box {
+    flex: none !important;
+    width: 100%;
+    min-height: auto !important;
+    padding: 12px;
+  }
+
+  /* ECharts 容器必须保留真实高度，否则 flex:1 在自动高度卡片中塌陷 */
+  .chart-container {
+    flex: none;
+    height: 240px;
+    min-height: 240px;
+  }
+
+  /* 卡片标题较长，允许换行避免与模式切换按钮重叠 */
+  :deep(.dv-title) {
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .title-text {
+      font-size: 12.5px;
+      line-height: 1.35;
+    }
+  }
+
+  .mode-switch-group {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .mode-btn {
+    padding: 3px 7px;
+    font-size: 10.5px;
+  }
+
+  .data-status {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .error-status {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
 </style>
