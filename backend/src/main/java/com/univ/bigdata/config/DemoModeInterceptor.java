@@ -23,8 +23,20 @@ public class DemoModeInterceptor implements HandlerInterceptor {
     @Value("${univ.demo-mode:false}")
     private boolean demoMode;
 
+    /**
+     * 演示模式下仍允许的写操作。
+     *
+     * <p>此前使用的是前缀白名单 {@code "/api/auth/"}，导致
+     * {@code POST /api/auth/register} 在公网演示环境可被匿名无限调用，
+     * 往数据库里灌入任意数量的 ROLE_USER 账号（512MB 免费实例可被直接打爆）。
+     * 现改为精确路径白名单：只放行登录本身，注册在演示模式下被拒绝。
+     */
+    private static final Set<String> ALLOWED_WRITE_URIS = Set.of(
+            "/api/auth/login"
+    );
+
+    /** 允许的交互式计算类前缀（志愿推荐测算与在线分数预测，无持久化副作用） */
     private static final Set<String> ALLOWED_WRITE_PREFIXES = Set.of(
-            "/api/auth/",
             "/api/recommend/",
             "/api/predict/"
     );
@@ -42,7 +54,13 @@ public class DemoModeInterceptor implements HandlerInterceptor {
         }
 
         String uri = request.getRequestURI();
-        // 允许白名单内的交互写入（如登录认证、智能志愿推荐计算、在线分数预测）
+
+        // 精确路径白名单：登录认证
+        if (ALLOWED_WRITE_URIS.contains(uri)) {
+            return true;
+        }
+
+        // 前缀白名单：智能志愿推荐计算、在线分数预测等无副作用的交互式写入
         for (String prefix : ALLOWED_WRITE_PREFIXES) {
             if (uri.startsWith(prefix)) {
                 return true;

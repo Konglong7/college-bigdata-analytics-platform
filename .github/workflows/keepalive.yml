@@ -2,7 +2,10 @@ name: Render KeepAlive Heartbeat
 
 on:
   schedule:
-    # 每 12 分钟执行一次轻量探测，防止 Render Free 容器 15 分钟休眠
+    # 每 12 分钟执行一次轻量探测，防止 Render Free 容器 15 分钟休眠后冷启动。
+    # ⚠ 已知限制：GitHub Actions 对定时任务的调度是 best-effort 的，
+    #   实测在公共仓库上经常被延迟到数小时才执行一次（可在 Actions 页面核对运行间隔），
+    #   因此它只能作为兜底，不能替代外部定时探活（UptimeRobot / cron-job.org）。
     - cron: '*/12 * * * *'
   workflow_dispatch:
 
@@ -10,7 +13,29 @@ jobs:
   heartbeat:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping College BigData Analytics Platform Render Service
+      - name: Ping Render service and verify data layer readiness
         run: |
-          curl -s -o /dev/null -w "%{http_code}" -m 30 "https://college-bigdata-analytics-platform.onrender.com" || true
-          curl -s -o /dev/null -w "%{http_code}" -m 30 "https://college-bigdata-analytics-platform.onrender.com/api/dashboard/statistics" || true
+          set -u
+          BASE="https://college-bigdata-analytics-platform.onrender.com"
+          HEALTH=/tmp/health.json
+
+          # 冷启动时首个请求可能超时，重试若干次把实例唤醒后再判定结果
+          for i in 1 2 3 4; do
+            code=$(curl -s -o "$HEALTH" -w "%{http_code}" -m 60 "$BASE/api/health" || true)
+            echo "attempt $i -> HTTP ${code:-no-response}"
+            if [ "$code" = "200" ]; then break; fi
+            sleep 15
+          done
+
+          echo "--- /api/health response ---"
+          cat "$HEALTH" 2>/dev/null || true
+          echo
+
+          # 数据层未就绪（H2 建表失败 / 外部数据源不可达）时让工作流失败，
+          # 这样在 GitHub Actions 页面能直接看到红色告警，而不是静默地"探测成功"。
+          if ! grep -q '"database":"UP"' "$HEALTH" 2>/dev/null; then
+            echo "::error::数据层未就绪：接口可能全部返回 Table not found，请检查 Render 日志与数据源配置"
+            exit 1
+          fi
+
+          echo "✅ 服务与数据层均正常"

@@ -6,6 +6,10 @@ services:
     region: singapore
     branch: main
     dockerfilePath: ./Dockerfile
+    # 健康检查走自定义端点：它真实探测 university 表，
+    # 能识别「进程存活但数据层未就绪（接口全部 Table not found）」的假健康状态。
+    # 不配置时 Render 只做 TCP 端口探测，无法发现这类故障。
+    healthCheckPath: /api/health
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: prod

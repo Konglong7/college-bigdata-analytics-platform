@@ -44,7 +44,10 @@ public class SecurityConfig {
                             return !request.getRequestURI().startsWith(apiPrefix);
                         }).permitAll()
                         // 2. 放行认证相关接口
+                        // 2. 放行认证相关接口（注册接口在演示模式下另由 DemoModeInterceptor 拦截）
                         .requestMatchers("/api/auth/**").permitAll()
+                        // 2.1 放行健康检查端点：Render 健康探测与保活脚本使用，不能要求 JWT
+                        .requestMatchers("/api/health", "/api/health/**").permitAll()
                         // 3. 放行所有大屏展示与公开数据查询 GET 接口
                         .requestMatchers(HttpMethod.GET,
                                 "/api/dashboard/**",

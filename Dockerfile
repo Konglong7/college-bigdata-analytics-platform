@@ -32,7 +32,13 @@ RUN apk add --no-cache tzdata && cp /usr/share/zoneinfo/$TZ /etc/localtime && ec
 COPY --from=backend-builder /app/backend/target/univ-bigdata-backend-1.0.0.jar app.jar
 
 # JVM options optimized for Render 512MB RAM free tier
-ENV JAVA_OPTS="-Xms128m -Xmx300m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -Xss512k -Djava.security.egd=file:/dev/./urandom"
+#
+# 参数说明（Render 免费实例：0.1 核 CPU / 512MB 内存）：
+#   -Xmx288m -XX:MaxMetaspaceSize=112m  为 JVM native/CodeCache/线程栈预留约 110MB，避免贴顶被 OOMKill(137)
+#   -XX:TieredStopAtLevel=1             只启用 C1 编译器，显著缩短冷启动时间并降低 CodeCache 占用
+#                                         （代价是峰值吞吐下降，对演示场景是划算的取舍）
+#   -XX:+ExitOnOutOfMemoryError         内存溢出时让容器干净退出并重启，而不是进入半死不活的假活状态
+ENV JAVA_OPTS="-Xms96m -Xmx288m -XX:MaxMetaspaceSize=112m -XX:+UseSerialGC -Xss512k -XX:TieredStopAtLevel=1 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV PORT=8088
 

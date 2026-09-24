@@ -1,5 +1,12 @@
 server:
   port: ${PORT:8088}
+  # Render 免费实例仅 0.1 核 CPU、512MB 内存，默认 200 线程的工作队列纯属浪费
+  tomcat:
+    threads:
+      max: 20
+      min-spare: 5
+    accept-count: 40
+    max-connections: 100
   compression:
     enabled: true
     min-response-size: 1024
@@ -10,7 +17,10 @@ spring:
     name: univ-bigdata-backend
   datasource:
     # 默认使用嵌入式轻量数据库（零配置即开即用），若配置了外部 MySQL/TiDB 环境变量则无缝切换
-    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:univ_bigdata_db;MODE=MySQL;NON_KEYWORDS=YEAR,VALUE;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    # DB_CLOSE_DELAY=-1：H2 内存库在连接池归还到 0 连接时会被直接销毁，
+    # 而建表灌数只在启动时由 DatabaseInitializer 执行一次，销毁后无法自愈，
+    # 页面会永久停留在空数据状态。该参数保证内存库随 JVM 生命周期存活。
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:univ_bigdata_db;MODE=MySQL;NON_KEYWORDS=YEAR,VALUE;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1}
     username: ${SPRING_DATASOURCE_USERNAME:sa}
     password: ${SPRING_DATASOURCE_PASSWORD:}
     hikari:
@@ -29,7 +39,9 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 生产环境改用 NoLoggingImpl：StdOutImpl 会把每条 SQL 打到 stdout，
+    # 在 0.1 核实例上属于纯浪费的 I/O 开销
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     db-config:
       id-type: auto
@@ -51,3 +63,5 @@ logging:
   level:
     root: INFO
     com.univ.bigdata: INFO
+    org.apache.ibatis: WARN
+    com.zaxxer.hikari: WARN
