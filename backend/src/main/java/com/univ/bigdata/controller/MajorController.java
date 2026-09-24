@@ -31,4 +31,15 @@ public class MajorController {
     public Result<Map<String, Object>> getNewEmergingTrend() {
         return Result.success(majorService.getNewEmergingTrend());
     }
+
+    @GetMapping("/category-distribution")
+    public Result<List<Map<String, Object>>> getCategoryDistribution() {
+        return Result.success(majorService.getCategoryDistribution());
+    }
+
+    @GetMapping("/wordcloud")
+    public Result<List<Map<String, Object>>> getWordCloud() {
+        return Result.success(majorService.getHotWordCloud());
+    }
 }
+

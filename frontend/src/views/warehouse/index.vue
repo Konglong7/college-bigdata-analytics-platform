@@ -37,7 +37,7 @@
 
     <!-- 中部：数据仓库星型建模架构层级设计 -->
     <DvBorderBox
-      title="数据仓库层次拓扑结构 (Star Schema / Hive / ClickHouse)"
+      title="数据仓库四层层次拓扑结构 (Star Schema / Hive / MySQL 8.0 规范建模)"
       style="flex: 1.1; min-height: 220px;"
     >
       <div class="dw-arch-grid">
@@ -91,65 +91,75 @@ import { getWarehouseMeta, WarehouseMetaData } from '@/api/warehouse'
 
 const meta = ref<WarehouseMetaData>({
   metrics: {
-    univCount: '3,072+ 所',
-    majorCount: '80,000+ 条',
-    enrollCount: '5,000,000+ 条',
-    storageSize: '12.8 GB (Parquet)'
+    univCount: '2,993 所',
+    majorCount: '1,611 条',
+    enrollCount: '20,951 条',
+    storageSize: '18.6 MB (数仓 InnoDB)'
   },
   layers: [
     {
-      name: 'ADS 应用数据层',
+      name: 'ADS 应用数据层 (业务决策宽表)',
       class: 'dw-tag-dwd',
       tables: [
-        'ads_univ_cockpit_view (驾驶舱聚合宽表)',
-        'ads_enroll_predict_matrix (招生预测矩阵)',
-        'ads_major_employment_rank (专业就业分析)'
+        'ads_univ_cockpit_view (驾驶舱聚合宽表 · 33 省级节点)',
+        'ads_enroll_predict_matrix (招生预测矩阵 · 30 项推演)',
+        'ads_major_employment_rank (专业就业分析 · 10 大门类)'
       ]
     },
     {
-      name: 'DWD/DWS 事实层',
+      name: 'DWD/DWS 事实层 (清洗规范事实)',
       class: 'dw-tag-fact',
       tables: [
-        'fact_univ_detail (高校事实表)',
-        'fact_enroll_record (招生事实表)',
-        'fact_major_subject (专业事实表)',
-        'fact_admission_score (录取分数事实表)'
+        'fact_univ_detail (高校基础事实表 · 2,993 条)',
+        'fact_enroll_record (招生调档事实表 · 20,951 条)',
+        'fact_major_subject (专业学科设置表 · 1,611 条)',
+        'fact_admission_score (录取分数事实表 · 覆盖 31 省市)'
       ]
     },
     {
-      name: 'DIM 维度表层',
+      name: 'DIM 维度表层 (标准化分析维度)',
       class: 'dw-tag-dim',
       tables: [
-        'dim_region (地区省市维度表)',
-        'dim_date (时间日期维度表)',
-        'dim_school (办学性质层次维度表)',
-        'dim_major_cat (学科门类分类维度表)'
+        'dim_region (全国 34 省市地区维度表)',
+        'dim_school_type (高校 6 大办学门类维度)',
+        'dim_school_level (985/211/双一流层次维度)',
+        'dim_major_cat (教育部 12 大学科门类维度)'
+      ]
+    },
+    {
+      name: 'ODS 原始湖仓日志层 (采集与清洗流水线)',
+      class: 'dw-tag-dwd',
+      tables: [
+        'ods_spider_raw_log (采集调度监控日志 · 18 批次)',
+        'ods_etl_quality_log (ETL 质量校验日志 · 13 批次)'
       ]
     }
   ],
   schemas: [
     {
-      tableName: '高校核心事实表 (fact_univ_detail)',
-      engine: '引擎: ClickHouse / 列式存储',
+      tableName: '高校核心事实表 (university · fact_univ_detail)',
+      engine: '存储引擎: MySQL 8 InnoDB / 行数: 2,993',
       fields: [
-        { name: 'school_id (学校唯一编码 - PK)', type: 'BIGINT' },
-        { name: 'school_name (高校名称)', type: 'VARCHAR(128)' },
-        { name: 'province (所在省份代码)', type: 'VARCHAR(32)' },
-        { name: 'type (院校类型: 理工/综合/师范)', type: 'VARCHAR(32)' },
-        { name: 'level (办学层次: 985/211/双一流/本科)', type: 'VARCHAR(32)' },
-        { name: 'create_time (数仓同步清洗时间戳)', type: 'TIMESTAMP' }
+        { name: 'id (高校唯一自增主键 - PK)', type: 'BIGINT' },
+        { name: 'school_name (全国高校官方备案名称)', type: 'VARCHAR(128)' },
+        { name: 'province / city (所在省份与城市)', type: 'VARCHAR(32)' },
+        { name: 'school_type (办学类型: 理工/综合/师范等)', type: 'VARCHAR(32)' },
+        { name: 'school_level (办学层次: 985/211/双一流/普通本科)', type: 'VARCHAR(32)' },
+        { name: 'ruanke_rank / qs_rank (软科综合排名 / QS 国际排名)', type: 'INT' },
+        { name: 'num_doctor / num_master (一级博士点 / 硕士点授权数)', type: 'INT' },
+        { name: 'create_time (数仓 ETL 清洗入库时间戳)', type: 'DATETIME' }
       ]
     },
     {
-      tableName: '专业维度与招生事实表 (dim_major & fact_enroll)',
-      engine: '引擎: Hive / 关联星型',
+      tableName: '历年招生与录取事实表 (enrollment · fact_enroll)',
+      engine: '存储引擎: MySQL 8 InnoDB / 行数: 20,951',
       fields: [
-        { name: 'major_id (专业标准代码 - PK)', type: 'BIGINT' },
-        { name: 'major_name (专业规范名称)', type: 'VARCHAR(64)' },
-        { name: 'category (所属门类: 工学/理学/医学等)', type: 'VARCHAR(32)' },
-        { name: 'enroll_year (招生年份 - 分区键 Part)', type: 'INT' },
-        { name: 'plan_count (投档计划招生人数)', type: 'INT' },
-        { name: 'min_score (调档最低录取分数线)', type: 'DECIMAL(5,2)' }
+        { name: 'id (招生投档记录唯一主键 - PK)', type: 'BIGINT' },
+        { name: 'university_id (关联高校实体主键 - FK)', type: 'BIGINT' },
+        { name: 'year (招生录取年份 · 2020-2024)', type: 'INT' },
+        { name: 'province / subject_type (生源省份 / 科类)', type: 'VARCHAR(32)' },
+        { name: 'plan_number / admission_number (计划招生 / 实际录取)', type: 'INT' },
+        { name: 'score (调档最低录取投档线)', type: 'DECIMAL(5,2)' }
       ]
     }
   ]
@@ -161,7 +171,9 @@ const loadData = async () => {
     if (res && res.metrics) {
       meta.value = res
     }
-  } catch {}
+  } catch (e) {
+    console.warn('Using baseline warehouse metadata', e)
+  }
 }
 
 onMounted(() => {
@@ -184,69 +196,72 @@ onMounted(() => {
   gap: 10px;
   height: 100%;
   justify-content: space-around;
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 .dw-layer {
   display: flex;
   align-items: center;
-  background: rgba(10, 30, 60, 0.4);
-  border: 1px solid rgba(0, 229, 255, 0.2);
-  border-radius: 4px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
   padding: 8px 15px;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .dw-layer-title {
-  width: 140px;
-  font-weight: bold;
+  width: 160px;
+  font-weight: 600;
   font-size: 13px;
-  color: var(--primary-color);
-  border-right: 2px solid rgba(0, 229, 255, 0.3);
-  padding-right: 10px;
+  color: var(--primary-light);
+  border-right: 2px solid var(--border-color);
+  padding-right: 12px;
+  flex-shrink: 0;
 }
 
 .dw-layer-content {
   display: flex;
   flex: 1;
-  gap: 12px;
+  gap: 10px;
   padding-left: 15px;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .dw-table-tag {
-  background: rgba(0, 229, 255, 0.1);
+  background: rgba(14, 165, 233, 0.1);
   border: 1px solid var(--border-color);
   padding: 4px 10px;
-  border-radius: 3px;
+  border-radius: 4px;
   font-size: 12px;
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--text-main);
 }
 
 .dw-tag-fact {
-  border-color: #ff4d4f;
-  color: #ff7875;
-  background: rgba(255, 77, 79, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
 }
 
 .dw-tag-dim {
-  border-color: #52c41a;
-  color: #95de64;
-  background: rgba(82, 196, 26, 0.1);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.08);
 }
 
 .dw-tag-dwd {
-  border-color: #faad14;
-  color: #ffe58f;
-  background: rgba(250, 173, 20, 0.1);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .schema-card {
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--input-bg);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 6px;
   padding: 10px;
   overflow-y: auto;
 }
@@ -262,12 +277,16 @@ onMounted(() => {
 .schema-field-item {
   display: flex;
   justify-content: space-between;
-  padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 2px;
+  padding: 5px 8px;
+  background: var(--table-stripe);
+  border-radius: 4px;
+  border-bottom: 1px solid var(--border-color-subtle);
+  color: var(--text-main);
+
   span.type {
-    color: #8ba2d4;
-    font-family: monospace;
+    color: var(--primary-light);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
   }
 }
 </style>

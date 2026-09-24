@@ -17,14 +17,14 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Optional
 
-# 动态引用外部代理池模块 (严格保持只读引用，不修改外部代码)
-PROXY_POOL_DIR = r"D:\Desktop\code\代理IP"
-if PROXY_POOL_DIR not in sys.path:
+# 动态引用外部代理池模块 (优先从环境变量读取，若目录不存在则安全降级)
+PROXY_POOL_DIR = os.getenv("PROXY_POOL_DIR", r"D:\Desktop\code\代理IP")
+if PROXY_POOL_DIR and os.path.isdir(PROXY_POOL_DIR) and PROXY_POOL_DIR not in sys.path:
     sys.path.insert(0, PROXY_POOL_DIR)
 
 try:
     from proxy_pool import ProxyPool
-except ImportError as e:
+except ImportError:
     ProxyPool = None
 
 logger = logging.getLogger("ProxyManager")

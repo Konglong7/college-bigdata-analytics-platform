@@ -47,7 +47,7 @@
           <button class="preset-pill" @click="loadPreset([12, 27])">成电 vs 杭电</button>
         </div>
 
-        <!-- 矩阵比对偏好开关 -->
+        <!-- 矩阵比对偏好开关与导出 -->
         <div class="compare-switches">
           <label class="switch-item" title="仅展示各高校指标存在差异的行">
             <input type="checkbox" v-model="onlyDiff" />
@@ -57,8 +57,12 @@
             <input type="checkbox" v-model="highlightBest" />
             <span>高亮优势标杆</span>
           </label>
+          <button class="dv-btn btn-export-compare" @click="handleExportCompare" title="导出当前高校对比矩阵为 Excel 表格">
+            <span>📊 导出对比表 (Excel)</span>
+          </button>
         </div>
       </div>
+
 
       <!-- 对比高校 4 槽位卡片栏 -->
       <div class="school-slots-grid">
@@ -223,7 +227,14 @@ const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
   return chart
 }
 
-const colorPalette = ['#00e5ff', '#ff4d4f', '#00ffaa', '#faad14', '#b37feb']
+import { currentTheme, getChartTheme, onThemeChange } from '@/utils/theme'
+
+const getPalette = () => {
+  return currentTheme.value === 'dark'
+    ? ['#00e5ff', '#ff4d4f', '#00ffaa', '#faad14', '#b37feb']
+    : ['#0284c7', '#dc2626', '#059669', '#d97706', '#7c3aed']
+}
+const colorPalette = computed(() => getPalette())
 
 // 搜索与选校状态
 const searchKeyword = ref<number | ''>('')
@@ -392,19 +403,26 @@ const getMetricIcon = (metric: string) => {
   return '📌'
 }
 
-// 渲染六维雷达图
+let cachedRadarData: UnivCompareResult['radarComparison'] | null = null
+let cachedScoreData: UnivCompareResult['scoreComparison'] | null = null
+let unregisterTheme: (() => void) | null = null
+
+// 渲染综合办学实力多维雷达对比
 const initRadarChart = (data: UnivCompareResult['radarComparison']) => {
+  cachedRadarData = data
   const chart = registerChart(radarChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
+  const palette = getPalette()
 
   const seriesData = data.series.map((item, idx) => ({
     name: item.name,
     value: item.value,
-    itemStyle: { color: colorPalette[idx % colorPalette.length] },
+    itemStyle: { color: palette[idx % palette.length] },
     areaStyle: {
       color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
         { offset: 0, color: 'rgba(0,0,0,0)' },
-        { offset: 1, color: `${colorPalette[idx % colorPalette.length]}33` }
+        { offset: 1, color: `${palette[idx % palette.length]}33` }
       ])
     }
   }))
@@ -412,13 +430,11 @@ const initRadarChart = (data: UnivCompareResult['radarComparison']) => {
   chart.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(5, 18, 43, 0.95)',
-      borderColor: '#00e5ff',
-      textStyle: { color: '#fff' }
+      ...theme.tooltip
     },
     legend: {
       data: data.series.map(s => s.name),
-      textStyle: { color: '#8ba2d4', fontSize: 11 },
+      textStyle: { color: theme.textColor, fontSize: 11 },
       top: 4,
       itemWidth: 10,
       itemHeight: 10
@@ -429,13 +445,17 @@ const initRadarChart = (data: UnivCompareResult['radarComparison']) => {
       splitNumber: 4,
       center: ['50%', '55%'],
       radius: '68%',
-      axisName: { color: '#8ba2d4', fontSize: 11 },
-      splitLine: { lineStyle: { color: 'rgba(0, 229, 255, 0.2)' } },
+      axisName: { color: theme.textColor, fontSize: 11 },
+      splitLine: { lineStyle: { color: theme.splitLineColor } },
       splitArea: {
         show: true,
-        areaStyle: { color: ['rgba(5, 18, 43, 0.8)', 'rgba(8, 28, 68, 0.8)'] }
+        areaStyle: {
+          color: theme.isDark 
+            ? ['rgba(5, 18, 43, 0.8)', 'rgba(8, 28, 68, 0.8)'] 
+            : ['rgba(241, 245, 249, 0.8)', 'rgba(255, 255, 255, 0.8)']
+        }
       },
-      axisLine: { lineStyle: { color: 'rgba(0, 229, 255, 0.3)' } }
+      axisLine: { lineStyle: { color: theme.axisLineColor } }
     },
     series: [{
       type: 'radar',
@@ -446,8 +466,11 @@ const initRadarChart = (data: UnivCompareResult['radarComparison']) => {
 
 // 渲染近五年投档分数线对比图 (自适应Y轴)
 const initScoreChart = (data: UnivCompareResult['scoreComparison']) => {
+  cachedScoreData = data
   const chart = registerChart(scoreChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
+  const palette = getPalette()
 
   // 计算全局最低分与最高分以自适应 Y 轴
   let minScore = 750
@@ -467,20 +490,18 @@ const initScoreChart = (data: UnivCompareResult['scoreComparison']) => {
     data: s.data,
     smooth: true,
     symbolSize: 6,
-    itemStyle: { color: colorPalette[idx % colorPalette.length] },
+    itemStyle: { color: palette[idx % palette.length] },
     lineStyle: { width: 2.5 }
   }))
 
   chart.setOption({
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(5, 18, 43, 0.95)',
-      borderColor: '#00e5ff',
-      textStyle: { color: '#fff' }
+      ...theme.tooltip
     },
     legend: {
       data: data.series.map(s => s.name),
-      textStyle: { color: '#8ba2d4', fontSize: 11 },
+      textStyle: { color: theme.textColor, fontSize: 11 },
       top: 4,
       itemWidth: 10,
       itemHeight: 10
@@ -489,18 +510,51 @@ const initScoreChart = (data: UnivCompareResult['scoreComparison']) => {
     xAxis: {
       type: 'category',
       data: data.years,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: theme.axisLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
       min: yMin,
       max: yMax,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      splitLine: { lineStyle: { color: theme.splitLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     series
   })
+}
+
+// 导出对比矩阵为 Excel (CSV)
+const handleExportCompare = () => {
+  if (!currentSchools.value || currentSchools.value.length === 0) {
+    ElMessage.warning('暂无高校对比数据可供导出')
+    return
+  }
+
+  const schoolNames = currentSchools.value.map(s => s.schoolName)
+  const headers = ['量化对比维度', ...schoolNames]
+  const rows: string[] = [headers.join(',')]
+
+  matrixRows.value.forEach(row => {
+    const cells = [
+      row.metric,
+      ...schoolNames.map(name => `"${(row[name] || '-').replace(/"/g, '""')}"`)
+    ]
+    rows.push(cells.join(','))
+  })
+
+  const csvContent = '\uFEFF' + rows.join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `高校多维综合对比量化矩阵_${schoolNames.join('_vs_')}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+
+  ElMessage.success('高校横向对比矩阵报表已成功导出！')
 }
 
 // 加载对比数据
@@ -542,14 +596,22 @@ onMounted(() => {
 
   loadCompareData()
   window.addEventListener('resize', handleResize)
+  unregisterTheme = onThemeChange(() => {
+    nextTick(() => {
+      if (cachedRadarData) initRadarChart(cachedRadarData)
+      if (cachedScoreData) initScoreChart(cachedScoreData)
+    })
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (unregisterTheme) unregisterTheme()
   chartInstances.forEach(c => c.dispose())
   chartInstances.length = 0
 })
 </script>
+
 
 <style scoped lang="scss">
 .compare-page {
@@ -1027,4 +1089,194 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
 }
+
+/* 浅色主题全面深度适配 */
+html.light {
+  .compare-control-panel {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .search-label, .presets-label, .switch-item {
+    color: #334155 !important;
+  }
+
+  .opt-name {
+    color: #0f172a !important;
+  }
+
+  .preset-pill {
+    background: #f0f9ff !important;
+    border: 1px solid #bae6fd !important;
+    color: #0284c7 !important;
+    &:hover {
+      background: #e0f2fe !important;
+      border-color: #38bdf8 !important;
+      color: #0369a1 !important;
+    }
+  }
+
+  .school-slot-card.active-card {
+    background: #ffffff !important;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06) !important;
+  }
+
+  .school-slot-card.placeholder-card {
+    background: #f8fafc !important;
+    border: 1.5px dashed #cbd5e1 !important;
+    .placeholder-content, .plus-icon {
+      color: #64748b !important;
+      font-weight: 500;
+    }
+  }
+
+  .school-title {
+    color: #0f172a !important;
+    &:hover {
+      color: #0284c7 !important;
+    }
+  }
+
+  .rank-badge {
+    color: #b45309 !important;
+    background: #fef3c7 !important;
+    border: 1px solid #fde68a !important;
+  }
+
+  .tag-primary {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+  }
+  .tag-secondary {
+    background: #ede9fe !important;
+    color: #6366f1 !important;
+  }
+  .tag-muted {
+    background: #f1f5f9 !important;
+    color: #64748b !important;
+  }
+
+  .btn-view {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-color: #bae6fd !important;
+    &:hover {
+      background: #bae6fd !important;
+    }
+  }
+
+  .btn-remove {
+    background: #fee2e2 !important;
+    color: #dc2626 !important;
+    border-color: #fca5a5 !important;
+    &:hover {
+      background: #fecaca !important;
+    }
+  }
+
+  .matrix-stats-hint {
+    color: #475569 !important;
+    strong {
+      color: #0284c7 !important;
+    }
+  }
+
+  .matrix-scroll-wrapper {
+    border-color: #cbd5e1 !important;
+  }
+
+  .matrix-table {
+    color: #0f172a !important;
+
+    th, td {
+      border-color: #e2e8f0 !important;
+    }
+
+    thead th {
+      background: #f8fafc !important;
+      color: #0f172a !important;
+      border-bottom: 2px solid #cbd5e1 !important;
+    }
+
+    .sticky-col {
+      background: #f8fafc !important;
+      color: #0f172a !important;
+      border-right: 2px solid #cbd5e1 !important;
+    }
+
+    thead th.sticky-col {
+      background: #f1f5f9 !important;
+    }
+
+    .school-name-text {
+      color: #0f172a !important;
+    }
+
+    .metric-title-cell {
+      color: #0f172a !important;
+      font-weight: 600;
+      border-right-color: #cbd5e1 !important;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f8fafc !important;
+    }
+
+    tbody tr:hover {
+      background: #f0f9ff !important;
+    }
+
+    .row-diff {
+      background: rgba(14, 165, 233, 0.05) !important;
+    }
+
+    .cell-winner {
+      background: #fffbeb !important;
+      border-color: #fde68a !important;
+      .val-text {
+        color: #b45309 !important;
+        font-weight: 700;
+      }
+    }
+
+    .best-badge {
+      color: #b45309 !important;
+      background: #fef3c7 !important;
+      border: 1px solid #fde68a !important;
+    }
+
+    .link-official {
+      color: #0284c7 !important;
+      background: #e0f2fe !important;
+      border: 1px solid #bae6fd !important;
+      &:hover {
+        background: #bae6fd !important;
+      }
+    }
+
+    .link-gaokao {
+      color: #b45309 !important;
+      background: #fef3c7 !important;
+      border: 1px solid #fde68a !important;
+      &:hover {
+        background: #fde68a !important;
+      }
+    }
+
+    .text-null {
+      color: #94a3b8 !important;
+    }
+  }
+
+  .btn-export-compare {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border-color: #7dd3fc !important;
+    &:hover {
+      background: #e0f2fe !important;
+    }
+  }
+}
 </style>
+

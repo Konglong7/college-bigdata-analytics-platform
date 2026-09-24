@@ -6,6 +6,7 @@ db_loader.py - 全国高校大数据采集引擎 · 数据持久化与数据库�
   3. 真实采集与清洗监控日志写入 (data_collect_log, data_clean_log)
 """
 
+import os
 import pymysql
 import logging
 from typing import List, Dict, Any, Tuple
@@ -14,13 +15,20 @@ logger = logging.getLogger("DbLoader")
 
 
 class DatabaseLoader:
-    def __init__(self, host="localhost", port=3306, user="root", password="123456", db="univ_bigdata_db"):
+    def __init__(
+        self,
+        host=None,
+        port=None,
+        user=None,
+        password=None,
+        db=None
+    ):
         self.conn_params = {
-            "host": host,
-            "port": port,
-            "user": user,
-            "password": password,
-            "database": db,
+            "host": host or os.getenv("MYSQL_HOST", "localhost"),
+            "port": int(port or os.getenv("MYSQL_PORT", 3306)),
+            "user": user or os.getenv("MYSQL_USER", "root"),
+            "password": password or os.getenv("MYSQL_PASSWORD", "123456"),
+            "database": db or os.getenv("MYSQL_DB", "univ_bigdata_db"),
             "charset": "utf8mb4",
             "autocommit": True
         }

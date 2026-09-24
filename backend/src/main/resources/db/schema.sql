@@ -1,0 +1,90 @@
+-- =========================================================
+-- 《基于大数据的全国高校数据分析可视化平台》
+-- 数据库 DDL (兼容 MySQL 8.0+ 与 H2 MySQL 模式)
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS sys_user (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(64) NOT NULL UNIQUE,
+  password VARCHAR(128) NOT NULL,
+  role VARCHAR(32) NOT NULL DEFAULT 'ROLE_USER',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS university (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  school_name VARCHAR(128) NOT NULL,
+  school_code VARCHAR(32) DEFAULT NULL,
+  province VARCHAR(32) NOT NULL,
+  city VARCHAR(32) NOT NULL,
+  school_type VARCHAR(32) NOT NULL,
+  school_level VARCHAR(32) NOT NULL,
+  establish_year INT DEFAULT NULL,
+  introduction TEXT DEFAULT NULL,
+  raw_school_id INT DEFAULT NULL,
+  belong VARCHAR(64) DEFAULT NULL,
+  nature_name VARCHAR(32) DEFAULT '公办',
+  dual_class_name VARCHAR(64) DEFAULT NULL,
+  school_site VARCHAR(255) DEFAULT NULL,
+  site VARCHAR(255) DEFAULT NULL,
+  phone VARCHAR(128) DEFAULT NULL,
+  email VARCHAR(128) DEFAULT NULL,
+  address VARCHAR(255) DEFAULT NULL,
+  postcode VARCHAR(32) DEFAULT NULL,
+  ruanke_rank INT DEFAULT NULL,
+  qs_rank INT DEFAULT NULL,
+  xyh_rank INT DEFAULT NULL,
+  num_doctor INT DEFAULT 0,
+  num_master INT DEFAULT 0,
+  num_academician INT DEFAULT 0,
+  num_library VARCHAR(32) DEFAULT NULL,
+  num_lab INT DEFAULT 0,
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS major (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  university_id BIGINT NOT NULL,
+  major_name VARCHAR(64) NOT NULL,
+  category VARCHAR(32) NOT NULL,
+  employment_rate DECIMAL(5,2) DEFAULT '0.00'
+);
+
+CREATE TABLE IF NOT EXISTS enrollment (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  university_id BIGINT NOT NULL,
+  year INT NOT NULL,
+  province VARCHAR(32) DEFAULT NULL,
+  subject_type VARCHAR(32) DEFAULT NULL,
+  batch_name VARCHAR(32) DEFAULT NULL,
+  min_score DECIMAL(5,1) DEFAULT NULL,
+  min_rank INT DEFAULT NULL,
+  plan_number INT NOT NULL DEFAULT 0,
+  admission_number INT NOT NULL DEFAULT 0,
+  score DECIMAL(5,2) NOT NULL DEFAULT '0.00',
+  create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS data_collect_log (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  source_name VARCHAR(128) NOT NULL,
+  collect_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status VARCHAR(32) NOT NULL DEFAULT 'SUCCESS',
+  data_count INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS data_clean_log (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  raw_count INT NOT NULL DEFAULT 0,
+  clean_count INT NOT NULL DEFAULT 0,
+  error_count INT NOT NULL DEFAULT 0,
+  clean_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS prediction_result (
+  id BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  type VARCHAR(64) NOT NULL,
+  year INT NOT NULL,
+  predict_value DECIMAL(10,2) NOT NULL,
+  generated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

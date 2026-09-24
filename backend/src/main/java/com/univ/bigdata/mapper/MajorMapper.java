@@ -19,6 +19,10 @@ public interface MajorMapper extends BaseMapper<Major> {
             "FROM major GROUP BY major_name ORDER BY value DESC LIMIT 10")
     List<Map<String, Object>> selectHotMajors();
 
+    @Select("SELECT major_name as name, category, COUNT(DISTINCT university_id) as value " +
+            "FROM major GROUP BY major_name, category ORDER BY value DESC LIMIT 50")
+    List<Map<String, Object>> selectHotWordCloud();
+
     @Select("SELECT COUNT(DISTINCT major_name) FROM major")
     Long countDistinctMajorNames();
 

@@ -3,25 +3,26 @@
 # College BigData Analytics Platform
 ### 基于大数据的全国高校多维数据分析与预测可视化平台
 
-**Spring Boot 3 · Vue 3 · TypeScript · ECharts 5 · Python 3.11 · Scikit-Learn · MySQL 8 · Redis 7**
+**Spring Boot 3 · Vue 3 · TypeScript · ECharts 5 · Python 3.11 · Scikit-Learn · MySQL 8**
 
-面向全国 3,000+ 所高校与千万级招生录取数据的全链路大数据分析中台与智能决策驾驶舱
+面向全国高校与招生录取数据的全链路分析中台与智能决策驾驶舱
 
 [![Java](https://img.shields.io/badge/Java-17-007396?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
-[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.2-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.2.5-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Vue](https://img.shields.io/badge/Vue-3.4-4FC08D?logo=vuedotjs&logoColor=white)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![ECharts](https://img.shields.io/badge/ECharts-5.5-AA344D?logo=apacheecharts&logoColor=white)](https://echarts.apache.org/)
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Scikit-Learn](https://img.shields.io/badge/Scikit_Learn-1.4-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0-4479A1?logo=mysql&logoColor=white)](https://www.mysql.com/)
-[![Redis](https://img.shields.io/badge/Redis-7.0-DC382D?logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](./Dockerfile)
 [![Live Demo](https://img.shields.io/badge/Live_Demo-Render-brightgreen?logo=render&logoColor=white)](https://college-bigdata-analytics-platform.onrender.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 > 🌐 **在线演示体验**：[https://college-bigdata-analytics-platform.onrender.com](https://college-bigdata-analytics-platform.onrender.com)  
 > 🚀 **零成本云原生容器化部署指南**：[DEPLOY.md](./DEPLOY.md)
+
+> **实现状态说明**：当前版本以 MySQL 直读、JWT 权限控制、预测结果展示和前端真实加载状态为答辩主线；Redis 缓存、EasyExcel/PDF 报表和批量导入属于后续扩展，不作为当前版本已交付能力宣称。README 中的性能数字只有在附带压测记录时才应更新。
 
 </div>
 
@@ -67,16 +68,16 @@ $$\text{多源异构采集} \longrightarrow \text{6 节点 ETL 清洗} \longrigh
 +-----------------------------------------------------------------------------------+
 |                                业务中台层 (Service Gateway)                        |
 |       Spring Boot 3 + Spring MVC + MyBatis-Plus + Spring Security + JWT 鉴权     |
-|          - 复合索引条件过滤引擎   - EasyExcel 百万级流式读写   - 接口契约校验机制          |
+|          - 复合索引条件过滤引擎   - DTO 接口校验   - 统一异常响应机制                  |
 +-----------------------------------------------------------------------------------+
-             │ (缓存预热 / 削峰)                          │ (数仓指标加载 / 算法调度)
+             │ (业务查询)                                  │ (数仓指标加载 / 算法调度)
              ▼                                            ▼
 +-------------------------+             +-------------------------------------------+
-|      缓存与会话层       |             |           大数据工程与建模层 (Python)      |
-| Redis 7 (聚合宽表缓存)  |             |  1. 采集引擎: Scrapy / Requests + 动态代理 |
+|      关系数据层         |             |           大数据工程与建模层 (Python)      |
+| MySQL 8 (业务与分析数据)|             |  1. 采集引擎: Scrapy / Requests + 动态代理 |
 +-------------------------+             |  2. ETL 管道: Pandas / NumPy 6 节点处理   |
-             │                          |  3. 预测模型: Scikit-learn 回归拟合 (MSE 0.038)|
-             ▼                          +-------------------------------------------+
+                                         |  3. 预测模型: Scikit-learn 回归拟合       |
+                                         +-------------------------------------------+
 +-----------------------------------------------------------------------------------+
 |                                存储与数仓分层 (Storage & DW)                       |
 |   MySQL 8.0 规范化数仓四层体系:                                                    |
@@ -114,22 +115,19 @@ $$\text{多源异构采集} \longrightarrow \text{6 节点 ETL 清洗} \longrigh
 
 ### 4. 机器学习录取趋势预测与辅助决策
 - **回归预测模型**：构建基于 **多项式岭回归（Polynomial Ridge）** 与 **随机森林回归（Random Forest Regressor）** 的预测管线；
-- **趋势拟合指标**：在历史招生位次与分数变动推演中，均方误差（MSE）平稳收敛至 **0.038**，有效拟合录取浮动趋势；
+- **趋势拟合指标**：训练脚本运行时输出 MAE、RMSE 和 R²，预测结果写入数据库并由页面展示来源与生成时间；不在文档中预先承诺未经当前数据集复核的固定指标；
 - **志愿填报决策助手**：输入考生预估分数、选考科目与目标省份，结合历史位次区间输出“冲、稳、保”梯度报考建议。
 
 ---
 
 ## 四、核心技术亮点与性能优化
 
-1. **MySQL 复合索引优化，消灭 `Using filesort`**：
-   - 针对大屏高频的复合查询场景，深度设计 `(province, level, type, avg_score)` 复合索引；
-   - 杜绝多字段排序与范围检索触发的文件排序与临时表开销，复杂组合筛选响应耗时由 480ms 降低至 **40ms 以内**。
-2. **Redis 旁路缓存与热点看板预热**：
-   - 将大屏涉及的昂贵跨表 `COUNT` / `GROUP BY` 计算转移至定时离线预聚合；
-   - ADS 层高频指标常驻 Redis，单机吞吐 QPS 提升 **6 倍以上**。
-3. **EasyExcel 50MB 极限低内存流式导出**：
-   - 取代容易发生堆内存溢出（OOM）的原生 POI 方案，基于模型分行逐条序列化流式导出；
-   - 稳定实现数十万条全国录取数据秒级导出为 Excel，内存开销恒定在 50MB 以内。
+1. **MySQL 条件查询与接口校验**：
+   - 高校分页查询沿用 MyBatis-Plus 和数据库索引；分页大小、推荐分数等外部参数由 DTO 校验，非法请求统一返回 400。
+2. **JWT 与角色权限边界**：
+   - 公开查询接口、未登录请求、普通用户和管理员路径分别验证；后台管理接口要求 `ROLE_ADMIN`，避免仅依赖前端菜单隐藏。
+3. **前端真实数据状态**：
+   - 核心页面区分加载中、成功、空数据和请求失败，不再用静态数组掩盖接口异常；预测指标展示数据来源和生成时间。
 
 ---
 
@@ -143,12 +141,11 @@ $$\text{多源异构采集} \longrightarrow \text{6 节点 ETL 清洗} \longrigh
 | | **Element Plus** | 2.6+ | 企业级中后台通用 UI 组件库 |
 | | **ECharts** | 5.5+ | 地图、雷达、极坐标等核心图表引擎 |
 | | **Pinia & Vue Router** | 最新版 | 状态机与前端路由管理 |
-| **后端开发** | **Spring Boot** | 3.2.2 | 企业级服务端核心框架 |
+| **后端开发** | **Spring Boot** | 3.2.5 | 企业级服务端核心框架 |
 | | **MyBatis-Plus** | 3.5.5 | 高性能 ORM 增强与 CRUD 抽象 |
 | | **Spring Security & JWT** | 标准版 | 无状态身份鉴权与接口权限拦截 |
-| | **Alibaba EasyExcel** | 3.3+ | 百万级 Excel 流式导入导出 |
 | **数据存储** | **MySQL** | 8.0+ | 核心关系型数据库与四层数仓落地 |
-| | **Redis** | 7.0+ | 聚合指标高速缓存与会话状态存储 |
+| | **Redis** | 规划 | 后续用于热点指标缓存，不属于当前版本运行依赖 |
 | **数据分析** | **Python** | 3.11 | 数据工程与算法运行环境 |
 | | **Pandas & NumPy** | 最新版 | 矩阵运算与 6 节点 ETL 数据清洗管道 |
 | | **Scikit-learn** | 1.4+ | 多项式回归与随机森林机器学习预测 |
@@ -167,7 +164,7 @@ college-bigdata-analytics-platform/
 │   │   ├── mapper/                # MyBatis-Plus 数据访问接口与 XML 映射文件
 │   │   ├── entity/                # 实体模型 (University, Major, Enrollment 等)
 │   │   ├── dto/ & vo/             # 数据传输对象与视图返回模型
-│   │   └── config/                # Redis 缓存、Security 安全鉴权与跨域配置
+│   │   └── config/                # Security 安全鉴权、演示保护与跨域配置
 │   └── pom.xml                    # Maven 核心构建依赖文件
 ├── frontend/                      # 前端工程 (Vue 3 + Vite + ECharts 5)
 │   ├── src/
@@ -202,7 +199,7 @@ college-bigdata-analytics-platform/
 - **Node.js**：18.x 或更高版本（搭配 npm / pnpm）
 - **Python**：3.10+
 - **MySQL**：8.0+
-- **Redis**：6.0+（可选，开启缓存加速）
+- **Redis**：当前版本不依赖；后续缓存扩展再启用
 
 ### 2. 数据库初始化
 1. 登录本地 MySQL 服务，新建数据库：
@@ -254,8 +251,8 @@ python train_predict_model.py
    - 提取高校历史 5 年在各省的调档位次差、当年省控线基准、专业门类系数、高校层次权值作为复合输入特征向量；
    - 针对非数值型维度进行 One-Hot / 标签编码，数值型维度统一经 `StandardScaler` 标准化消除量纲差异。
 2. **算法对比与选型**：
-   - 针对时序序列较短、特征维度清晰的场景，线性回归存在欠拟合（MSE $\approx 0.082$）；
-   - 引入带有 L2 正则化的 **多项式岭回归** 抑制多重共线性，结合 **随机森林回归** 捕捉非线性波动，最终模型测试集 MSE 收敛至 **0.038**，兼具高泛化能力与低计算开销。
+   - 针对时序序列较短、特征维度清晰的场景，训练脚本会在运行时输出模型评估指标；
+   - 训练脚本按当前数据集计算并输出 MAE、RMSE、R²，再将预测结果和生成时间写入 `prediction_result`；具体指标应以本次训练日志为准。
 
 ---
 

@@ -1,5 +1,12 @@
 <template>
   <div class="collect-page">
+    <div v-if="collectLoad.state.value === 'error'" class="data-status error-status">
+      {{ collectLoad.errorMessage.value }}
+      <button class="dv-btn" @click="loadTrafficTrend">重试</button>
+    </div>
+    <div v-else-if="collectLoad.state.value === 'empty'" class="data-status">
+      当前没有可用的采集吞吐记录。
+    </div>
     <!-- 顶部采集监控卡片 -->
     <div class="stat-banner">
       <DvBorderBox class="stat-card">
@@ -180,9 +187,15 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import DvBorderBox from '@/components/DvBorderBox/index.vue'
 import { getTrafficTrend } from '@/api/collect'
+import { getChartTheme, onThemeChange } from '@/utils/theme'
+import { createLoadState } from '@/utils/loadState'
 
 const trafficChartRef = ref<HTMLDivElement | null>(null)
 let trafficChart: echarts.ECharts | null = null
+let cachedTimes: string[] = []
+let cachedSeries: Array<{ name: string; data: number[] }> = []
+let unsubTheme: (() => void) | null = null
+const collectLoad = createLoadState()
 
 // 真实爬虫数据源网站列表
 const sourceLinks = ref([
@@ -325,40 +338,32 @@ const realLogs = ref([
   }
 ])
 
-const baseChartStyle = {
-  textStyle: { color: '#8ba2d4' },
-  grid: { top: 35, right: 20, bottom: 25, left: 45 },
-  tooltip: {
-    backgroundColor: 'rgba(5, 18, 43, 0.9)',
-    borderColor: '#00e5ff',
-    borderWidth: 1,
-    textStyle: { color: '#fff' }
-  }
-}
-
 const initTrafficChart = (times: string[], seriesData: Array<{ name: string; data: number[] }>) => {
   if (!trafficChartRef.value) return
   trafficChart = echarts.getInstanceByDom(trafficChartRef.value) || echarts.init(trafficChartRef.value)
-  const colors = ['#00e5ff', '#1089ff', '#00ffaa', '#faad14']
+  const ct = getChartTheme()
+  const colors = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6']
+
   trafficChart.setOption({
-    ...baseChartStyle,
-    tooltip: { trigger: 'axis' },
+    tooltip: { ...ct.tooltip, trigger: 'axis' },
+    textStyle: { color: ct.textColor },
+    grid: { top: 35, right: 20, bottom: 25, left: 45 },
     legend: {
       data: seriesData.map(s => s.name),
-      textStyle: { color: '#8ba2d4' },
+      textStyle: { color: ct.textColor },
       top: '0%'
     },
     xAxis: {
       type: 'category',
       data: times,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      splitLine: { lineStyle: { color: ct.splitLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     series: seriesData.map((s, idx) => ({
       name: s.name,
@@ -368,30 +373,32 @@ const initTrafficChart = (times: string[], seriesData: Array<{ name: string; dat
       itemStyle: { color: colors[idx % colors.length] },
       areaStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: colors[idx % colors.length] + '44' },
+          { offset: 0, color: colors[idx % colors.length] + (ct.isDark ? '40' : '25') },
           { offset: 1, color: colors[idx % colors.length] + '00' }
         ])
       }
     }))
-  })
+  }, true)
 }
 
 const loadTrafficTrend = async () => {
+  collectLoad.start()
   try {
     const res = await getTrafficTrend()
-    if (res && res.times && res.series) {
-      initTrafficChart(res.times, res.series)
+    if (!res?.times?.length || !res.series?.length) {
+      collectLoad.succeed(true)
       return
     }
-  } catch {}
-  initTrafficChart(
-    ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
-    [
-      { name: '掌上高考核心网关', data: [120, 80, 450, 820, 680, 920, 540] },
-      { name: '高校官方门户网站', data: [80, 40, 260, 520, 430, 610, 320] },
-      { name: '教育部阳光高考网', data: [60, 30, 180, 390, 310, 480, 210] }
-    ]
-  )
+    cachedTimes = res.times
+    cachedSeries = res.series
+    initTrafficChart(cachedTimes, cachedSeries)
+    collectLoad.succeed(false)
+  } catch (error) {
+    console.error('Failed to load collection traffic:', error)
+    cachedTimes = []
+    cachedSeries = []
+    collectLoad.fail('采集吞吐数据加载失败，请确认后端服务可用。')
+  }
 }
 
 const handleResize = () => {
@@ -402,11 +409,17 @@ onMounted(() => {
   nextTick(() => {
     loadTrafficTrend()
     window.addEventListener('resize', handleResize)
+    unsubTheme = onThemeChange(() => {
+      if (cachedTimes.length && cachedSeries.length) {
+        initTrafficChart(cachedTimes, cachedSeries)
+      }
+    })
   })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (unsubTheme) unsubTheme()
   trafficChart?.dispose()
 })
 </script>
@@ -420,6 +433,23 @@ onUnmounted(() => {
   gap: 12px;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+.data-status {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
 }
 
 .stat-banner {
@@ -441,12 +471,13 @@ onUnmounted(() => {
   font-size: 28px;
   width: 48px;
   height: 48px;
-  background: rgba(0, 229, 255, 0.1);
+  background: rgba(14, 165, 233, 0.12);
   border: 1px solid var(--secondary-color);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--primary-color);
 }
 
 .stat-info {
@@ -486,17 +517,18 @@ onUnmounted(() => {
 }
 
 .gateway-card {
-  background: rgba(4, 21, 54, 0.65);
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: var(--card-shadow);
   &:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 0 12px rgba(0, 229, 255, 0.3);
+    box-shadow: var(--card-shadow-hover);
   }
 }
 
@@ -509,10 +541,11 @@ onUnmounted(() => {
 .gateway-tag {
   font-size: 11px;
   padding: 2px 6px;
-  background: rgba(16, 137, 255, 0.2);
-  color: var(--secondary-color);
-  border: 1px solid rgba(16, 137, 255, 0.4);
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--primary-color);
+  border: 1px solid rgba(14, 165, 233, 0.3);
   border-radius: 3px;
+  font-weight: 500;
 }
 
 .gateway-status {
@@ -521,6 +554,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 5px;
+  font-weight: 500;
 }
 
 .status-dot {
@@ -533,15 +567,16 @@ onUnmounted(() => {
 
 .gateway-title {
   font-size: 13.5px;
-  font-weight: bold;
-  color: #fff;
+  font-weight: 600;
+  color: var(--text-main);
 }
 
 .gateway-url {
   font-size: 11.5px;
-  color: #00e5ff;
+  color: var(--primary-color);
   font-family: 'Courier New', Courier, monospace;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(14, 165, 233, 0.08);
+  border: 1px solid var(--border-color-subtle);
   padding: 3px 6px;
   border-radius: 3px;
   overflow: hidden;
@@ -561,28 +596,30 @@ onUnmounted(() => {
   align-items: center;
   margin-top: 4px;
   padding-top: 6px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  border-top: 1px dashed var(--border-color-subtle);
 }
 
 .gateway-field {
   font-size: 11px;
-  color: #8ba2d4;
+  color: var(--text-sub);
 }
 
 .dv-link-btn {
   display: inline-block;
   padding: 3px 10px;
   font-size: 11.5px;
-  color: #02091b;
-  background: linear-gradient(90deg, #00e5ff, #1089ff);
-  border-radius: 3px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  border-radius: 4px;
   text-decoration: none;
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.25);
   &:hover {
-    opacity: 0.85;
-    box-shadow: 0 0 8px #00e5ff;
+    opacity: 0.9;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+    transform: translateY(-1px);
   }
 }
 
@@ -599,10 +636,10 @@ onUnmounted(() => {
 .verify-table-header {
   display: flex;
   align-items: center;
-  background: rgba(0, 229, 255, 0.12);
-  border: 1px solid rgba(0, 229, 255, 0.3);
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid var(--border-color);
   padding: 8px 12px;
-  font-weight: bold;
+  font-weight: 600;
   color: var(--primary-color);
   border-radius: 4px;
 }
@@ -616,14 +653,15 @@ onUnmounted(() => {
 .verify-row {
   display: flex;
   align-items: center;
-  background: rgba(6, 26, 62, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
   padding: 8px 12px;
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  box-shadow: var(--card-shadow);
   &:hover {
-    background: rgba(16, 137, 255, 0.15);
-    border-color: rgba(0, 229, 255, 0.3);
+    background: var(--bg-panel-hover);
+    border-color: var(--primary-color);
   }
 }
 
@@ -632,17 +670,19 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #fff;
+  color: var(--text-main);
+  font-weight: 600;
 }
 
 .u-badge {
   display: inline-block;
   font-size: 10px;
-  background: rgba(0, 229, 255, 0.2);
-  color: #00e5ff;
-  border: 1px solid #00e5ff;
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
   border-radius: 2px;
   padding: 0 4px;
+  font-weight: bold;
 }
 
 .col-tag {
@@ -654,19 +694,21 @@ onUnmounted(() => {
 .tag-level {
   font-size: 11px;
   padding: 1px 5px;
-  background: rgba(250, 173, 20, 0.2);
-  color: #faad14;
-  border: 1px solid rgba(250, 173, 20, 0.4);
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: 2px;
+  font-weight: 500;
 }
 
 .tag-belong {
   font-size: 11px;
   padding: 1px 5px;
-  background: rgba(0, 255, 170, 0.15);
-  color: #00ffaa;
-  border: 1px solid rgba(0, 255, 170, 0.3);
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.35);
   border-radius: 2px;
+  font-weight: 500;
 }
 
 .col-field {
@@ -674,12 +716,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  color: #8ba2d4;
+  color: var(--text-sub);
   font-size: 11px;
 }
 
 .field-phone {
-  color: #00e5ff;
+  color: var(--primary-color);
+  font-weight: 500;
 }
 
 .field-address {
@@ -687,6 +730,7 @@ onUnmounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 260px;
+  color: var(--text-sub);
 }
 
 .col-link {
@@ -699,33 +743,37 @@ onUnmounted(() => {
   font-size: 11px;
   border-radius: 3px;
   text-decoration: none;
-  background: rgba(0, 229, 255, 0.15);
-  color: #00e5ff;
-  border: 1px solid #00e5ff;
+  background: rgba(14, 165, 233, 0.15);
+  color: var(--primary-color);
+  border: 1px solid rgba(14, 165, 233, 0.4);
+  font-weight: 500;
   transition: all 0.2s;
   &:hover {
-    background: #00e5ff;
-    color: #02091b;
+    background: var(--primary-color);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(14, 165, 233, 0.3);
   }
 }
 
 .link-gaokao {
-  background: rgba(250, 173, 20, 0.15);
-  color: #faad14;
-  border-color: #faad14;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.4);
   &:hover {
-    background: #faad14;
-    color: #02091b;
+    background: var(--warning);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
   }
 }
 
 .link-score {
-  background: rgba(0, 255, 170, 0.15);
-  color: #00ffaa;
-  border-color: #00ffaa;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+  border-color: rgba(16, 185, 129, 0.4);
   &:hover {
-    background: #00ffaa;
-    color: #02091b;
+    background: var(--success);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
   }
 }
 
@@ -738,10 +786,11 @@ onUnmounted(() => {
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 3px;
+  font-weight: 600;
   &.success {
-    background: rgba(82, 196, 26, 0.2);
-    color: #52c41a;
-    border: 1px solid #52c41a;
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.35);
   }
 }
 
@@ -765,15 +814,21 @@ onUnmounted(() => {
 
 .log-row {
   padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
   border-left: 3px solid var(--secondary-color);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: 2px;
+  border-radius: 3px;
+  transition: all 0.2s;
+  box-shadow: var(--card-shadow);
   &.success { border-left-color: var(--success); }
   &.warn { border-left-color: var(--warning); }
   &.error { border-left-color: var(--danger); }
+  &:hover {
+    background: var(--bg-panel-hover);
+  }
 }
 
 .log-left {
@@ -791,25 +846,108 @@ onUnmounted(() => {
 .log-time {
   color: var(--text-sub);
   margin-right: 12px;
+  font-size: 11px;
 }
 
 .log-msg {
-  color: #fff;
+  color: var(--text-main);
   flex: 1;
 }
 
 .log-url-link {
-  color: #00e5ff;
+  color: var(--primary-color);
   font-size: 11px;
   text-decoration: underline;
   cursor: pointer;
+  font-weight: 500;
   &:hover {
-    color: #faad14;
+    color: var(--secondary-color);
   }
 }
 
 .log-badge {
   color: var(--primary-color);
   font-weight: bold;
+  font-size: 11px;
+}
+
+/* 浅色主题下的专属微调与高对比度强化 */
+html.light {
+  .gateway-card {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+    &:hover {
+      border-color: #38bdf8 !important;
+      box-shadow: 0 4px 14px rgba(14, 165, 233, 0.15) !important;
+    }
+  }
+
+  .gateway-url {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border-color: #bae6fd !important;
+  }
+
+  .verify-table-header {
+    background: #f0f9ff !important;
+    border-color: #bae6fd !important;
+    color: #0369a1 !important;
+  }
+
+  .verify-row {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    &:hover {
+      background: #f8fafc !important;
+      border-color: #7dd3fc !important;
+    }
+  }
+
+  .table-ext-link {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-color: #7dd3fc !important;
+    &:hover {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+    }
+  }
+
+  .link-gaokao {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border-color: #fcd34d !important;
+    &:hover {
+      background: #d97706 !important;
+      color: #ffffff !important;
+    }
+  }
+
+  .link-score {
+    background: #dcfce7 !important;
+    color: #15803d !important;
+    border-color: #86efac !important;
+    &:hover {
+      background: #16a34a !important;
+      color: #ffffff !important;
+    }
+  }
+
+  .verify-badge.success {
+    background: #dcfce7 !important;
+    color: #16a34a !important;
+    border-color: #86efac !important;
+  }
+
+  .log-row {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+    &:hover {
+      background: #f8fafc !important;
+    }
+  }
 }
 </style>

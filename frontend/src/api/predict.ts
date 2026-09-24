@@ -7,6 +7,8 @@ export interface ModelMetricsData {
   mae: number
   rmse: number
   r2: string
+  dataSource?: string
+  generatedAt?: string
 }
 
 export interface PredictionTrendsData {

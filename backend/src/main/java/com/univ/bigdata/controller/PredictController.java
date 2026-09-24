@@ -2,6 +2,7 @@ package com.univ.bigdata.controller;
 
 import com.univ.bigdata.common.api.Result;
 import com.univ.bigdata.service.PredictionResultService;
+import com.univ.bigdata.vo.PredictionMetricsVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -17,7 +18,7 @@ public class PredictController {
     private final PredictionResultService predictionResultService;
 
     @GetMapping("/model-metrics")
-    public Result<Map<String, Object>> getModelMetrics() {
+    public Result<PredictionMetricsVo> getModelMetrics() {
         return Result.success(predictionResultService.getModelMetrics());
     }
 

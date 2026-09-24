@@ -20,6 +20,7 @@ import com.univ.bigdata.vo.UniversityCardVo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
@@ -32,6 +33,14 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
 
     private final MajorMapper majorMapper;
     private final EnrollmentMapper enrollmentMapper;
+
+    private boolean is985(String level) {
+        return StringUtils.hasText(level) && level.contains("985");
+    }
+
+    private boolean is211(String level) {
+        return StringUtils.hasText(level) && level.contains("211");
+    }
 
     @Override
     public Page<UniversityCardVo> pageUniversities(UniversityQueryDto queryDto) {
@@ -57,7 +66,7 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
         List<UniversityCardVo> voList = resultPage.getRecords().stream().map(u -> {
             UniversityCardVo vo = new UniversityCardVo();
             BeanUtils.copyProperties(u, vo);
-            String dep = StringUtils.hasText(u.getBelong()) ? u.getBelong() : (u.getSchoolLevel().contains("985") ? "教育部" : "地方省教育厅");
+            String dep = StringUtils.hasText(u.getBelong()) ? u.getBelong() : (is985(u.getSchoolLevel()) ? "教育部" : "地方省教育厅");
             vo.setDepartment(dep);
             if (u.getRawSchoolId() != null) {
                 vo.setGaokaoSite("https://www.gaokao.cn/school/" + u.getRawSchoolId());
@@ -79,13 +88,15 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
             throw new CustomException(ResultCode.DATA_NOT_FOUND);
         }
 
+        String level = u.getSchoolLevel() != null ? u.getSchoolLevel() : "普通本科";
+
         // 1. 动态生成权威标签 (与真实爬取资质一致)
         List<String> tags = new ArrayList<>();
-        if (u.getSchoolLevel().contains("985")) {
+        if (is985(level)) {
             tags.add("985工程");
             tags.add("211工程");
             tags.add("双一流高校");
-        } else if (u.getSchoolLevel().contains("211")) {
+        } else if (is211(level)) {
             tags.add("211工程");
             if (StringUtils.hasText(u.getDualClassName())) {
                 tags.add(u.getDualClassName());
@@ -95,13 +106,15 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
         } else if (StringUtils.hasText(u.getDualClassName())) {
             tags.add(u.getDualClassName());
         } else {
-            tags.add(u.getSchoolLevel());
+            tags.add(level);
         }
         tags.add(StringUtils.hasText(u.getNatureName()) ? u.getNatureName() : "公办");
-        tags.add(u.getSchoolType());
+        if (StringUtils.hasText(u.getSchoolType())) {
+            tags.add(u.getSchoolType());
+        }
 
         // 2. 真实主管部门
-        String dept = StringUtils.hasText(u.getBelong()) ? u.getBelong() : (u.getSchoolLevel().contains("985") ? "教育部" : (u.getProvince() + "省教育厅"));
+        String dept = StringUtils.hasText(u.getBelong()) ? u.getBelong() : (is985(level) ? "教育部" : (u.getProvince() + "省教育厅"));
 
         // 3. 官方真实网站与直达链接组装
         String rawSid = u.getRawSchoolId() != null ? String.valueOf(u.getRawSchoolId()) : "";
@@ -113,14 +126,14 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
         int doctorCnt = u.getNumDoctor() != null ? u.getNumDoctor() : 0;
         int acadCnt = u.getNumAcademician() != null ? u.getNumAcademician() : 0;
         int labCnt = u.getNumLab() != null ? u.getNumLab() : 0;
-        int rRank = (u.getRuankeRank() != null && u.getRuankeRank() > 0) ? u.getRuankeRank() : (u.getSchoolLevel().contains("985") ? 15 : 120);
+        int rRank = (u.getRuankeRank() != null && u.getRuankeRank() > 0) ? u.getRuankeRank() : (is985(level) ? 15 : 120);
 
-        int scoreTeachers = Math.min(99, Math.max(65, 70 + (acadCnt * 2) / 5 + (u.getSchoolLevel().contains("985") ? 18 : 5)));
-        int scoreResearch = Math.min(99, Math.max(60, 68 + (labCnt * 2) + (u.getSchoolLevel().contains("985") ? 15 : 8)));
+        int scoreTeachers = Math.min(99, Math.max(65, 70 + (acadCnt * 2) / 5 + (is985(level) ? 18 : 5)));
+        int scoreResearch = Math.min(99, Math.max(60, 68 + (labCnt * 2) + (is985(level) ? 15 : 8)));
         int scoreSubject = Math.min(99, Math.max(62, 65 + Math.min(25, doctorCnt / 2)));
         int scoreRank = Math.min(99, Math.max(60, 100 - (int)Math.sqrt(rRank * 10)));
-        int scoreEnroll = u.getSchoolLevel().contains("985") ? 98 : (u.getSchoolLevel().contains("211") ? 88 : 76);
-        int scoreJob = u.getSchoolLevel().contains("985") ? 96 : (u.getSchoolLevel().contains("211") ? 91 : 84);
+        int scoreEnroll = is985(level) ? 98 : (is211(level) ? 88 : 76);
+        int scoreJob = is985(level) ? 96 : (is211(level) ? 91 : 84);
 
         List<Map<String, Object>> indicators = List.of(
                 Map.of("name", "师资力量 (院士)", "max", 100),
@@ -132,13 +145,15 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
         );
         List<Integer> radarValues = List.of(scoreTeachers, scoreResearch, scoreSubject, scoreRank, scoreEnroll, scoreJob);
 
-        // 5. 权威榜单综合排名走势与对比 (软科、QS、校友会)
-        List<String> rankYears = List.of("2020", "2021", "2022", "2023", "2024");
+        // 5. 权威榜单综合排名走势与对比 (软科、QS、校友会) - 覆盖 2020 至 2026 最新年份
+        List<String> rankYears = List.of("2020", "2021", "2022", "2023", "2024", "2025", "2026");
         List<Integer> rankValues = new ArrayList<>();
         int baseRank = rRank;
         rankValues.add(Math.max(1, baseRank + 2));
         rankValues.add(Math.max(1, baseRank + 1));
         rankValues.add(Math.max(1, baseRank + 1));
+        rankValues.add(Math.max(1, baseRank));
+        rankValues.add(Math.max(1, baseRank));
         rankValues.add(Math.max(1, baseRank));
         rankValues.add(Math.max(1, baseRank));
 
@@ -260,8 +275,21 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
             }
         }
         if (schoolDetails.isEmpty()) {
-            schoolDetails.add(this.getUniversityDetail(1L));
-            schoolDetails.add(this.getUniversityDetail(2L));
+            try {
+                UnivDetailVo d1 = this.getUniversityDetail(1L);
+                if (d1 != null) schoolDetails.add(d1);
+                UnivDetailVo d2 = this.getUniversityDetail(2L);
+                if (d2 != null) schoolDetails.add(d2);
+            } catch (Exception ignored) {
+            }
+        }
+        if (schoolDetails.isEmpty()) {
+            return UnivCompareVo.builder()
+                    .schools(Collections.emptyList())
+                    .radarComparison(Collections.emptyMap())
+                    .scoreComparison(Collections.emptyMap())
+                    .metricMatrix(Collections.emptyList())
+                    .build();
         }
 
         // 1. 六维雷达同屏对比数据
@@ -277,8 +305,8 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
                 "series", radarSeries
         );
 
-        // 2. 历年调档录取线同屏对比数据
-        List<String> commonYears = List.of("2020", "2021", "2022", "2023", "2024");
+        // 2. 历年调档录取线同屏对比数据 - 覆盖 2020 至 2026 最新年份
+        List<String> commonYears = List.of("2020", "2021", "2022", "2023", "2024", "2025", "2026");
         List<Map<String, Object>> scoreSeries = new ArrayList<>();
         for (UnivDetailVo s : schoolDetails) {
             List<Double> scores = new ArrayList<>();
@@ -293,13 +321,13 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
                     }
                 }
             }
-            while (scores.size() < 5) {
-                double base = s.getSchoolLevel().contains("985") ? 675.0 : (s.getSchoolLevel().contains("211") ? 615.0 : 520.0);
+            while (scores.size() < commonYears.size()) {
+                double base = is985(s.getSchoolLevel()) ? 675.0 : (is211(s.getSchoolLevel()) ? 615.0 : 520.0);
                 scores.add(base + scores.size() * 2);
             }
             scoreSeries.add(Map.of(
                     "name", s.getSchoolName(),
-                    "data", scores.subList(0, 5)
+                    "data", scores.subList(0, Math.min(scores.size(), commonYears.size()))
             ));
         }
         Map<String, Object> scoreComparison = Map.of(
@@ -340,6 +368,7 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addUniversity(UniversityDto dto) {
         University u = new University();
         BeanUtils.copyProperties(dto, u);
@@ -348,6 +377,7 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updateUniversity(UniversityDto dto) {
         if (dto.getId() == null) {
             throw new CustomException("高校ID不能为空");
@@ -361,7 +391,11 @@ public class UniversityServiceImpl extends ServiceImpl<UniversityMapper, Univers
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteUniversity(Long id) {
+        // 级联清理关联的招生事实表与专业设置表
+        enrollmentMapper.delete(new LambdaQueryWrapper<Enrollment>().eq(Enrollment::getUniversityId, id));
+        majorMapper.delete(new LambdaQueryWrapper<Major>().eq(Major::getUniversityId, id));
         this.removeById(id);
     }
 }

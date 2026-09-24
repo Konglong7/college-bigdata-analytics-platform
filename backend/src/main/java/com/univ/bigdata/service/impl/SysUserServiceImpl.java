@@ -54,11 +54,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new CustomException(ResultCode.USERNAME_ALREADY_EXISTS);
         }
 
-        String role = StringUtils.hasText(registerDto.getRole()) ? registerDto.getRole() : "ROLE_USER";
         SysUser newUser = SysUser.builder()
                 .username(registerDto.getUsername())
                 .password(passwordEncoder.encode(registerDto.getPassword()))
-                .role(role)
+                .role("ROLE_USER")
                 .createTime(LocalDateTime.now())
                 .build();
 

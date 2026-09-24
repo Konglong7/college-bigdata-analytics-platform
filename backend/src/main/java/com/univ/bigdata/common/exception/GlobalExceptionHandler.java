@@ -4,11 +4,14 @@ import com.univ.bigdata.common.api.Result;
 import com.univ.bigdata.common.api.ResultCode;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import jakarta.validation.ConstraintViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
@@ -20,6 +23,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<?> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
         BindingResult bindingResult = e.getBindingResult();
         String message = null;
@@ -33,6 +37,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BindException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public Result<?> handleBindException(BindException e) {
         BindingResult bindingResult = e.getBindingResult();
         String message = null;
@@ -43,6 +48,12 @@ public class GlobalExceptionHandler {
             }
         }
         return Result.failed(ResultCode.VALIDATE_FAILED.getCode(), message != null ? message : ResultCode.VALIDATE_FAILED.getMessage());
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<?> handleConstraintViolationException(ConstraintViolationException e) {
+        return Result.failed(ResultCode.VALIDATE_FAILED.getCode(), e.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

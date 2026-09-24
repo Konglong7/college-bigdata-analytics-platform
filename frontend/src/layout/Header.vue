@@ -43,11 +43,39 @@
 
       <div class="header-divider"></div>
 
-      <!-- 用户信息与操作 -->
+      <!-- 工具操作区：全屏与主题切换 -->
+      <div class="tool-actions">
+        <!-- 全屏演示切换 -->
+        <button
+          class="tool-btn"
+          :title="isFullscreen ? '退出全屏' : '进入全屏大屏演示汇报模式'"
+          @click="handleToggleFullscreen"
+        >
+          <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+          </svg>
+          <span class="btn-label">{{ isFullscreen ? '窗口' : '全屏' }}</span>
+        </button>
+
+        <!-- 深色/浅色主题双模切换 -->
+        <button
+          class="tool-btn theme-toggle-btn"
+          :title="currentTheme === 'dark' ? '切换为浅色白模式 (适合毕业论文报告截图)' : '切换为暗黑模式 (适合大屏投屏演示)'"
+          @click="toggleTheme"
+        >
+          <span class="theme-icon">{{ currentTheme === 'dark' ? '☀️' : '🌙' }}</span>
+          <span class="btn-label">{{ currentTheme === 'dark' ? '浅色' : '深色' }}</span>
+        </button>
+      </div>
+
+      <!-- 用户信息与退出 -->
       <div class="user-meta">
         <div class="user-badge" :title="'当前用户: ' + username">
           <div class="user-avatar">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
@@ -56,7 +84,7 @@
         </div>
 
         <button class="logout-btn" title="退出系统" @click="handleLogout">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -69,9 +97,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { currentTheme, toggleTheme } from '@/utils/theme'
 
 const route = useRoute()
 const router = useRouter()
@@ -94,6 +123,31 @@ const rightNavs = [
   { name: '数据仓库', path: '/warehouse' },
   { name: '系统后台', path: '/admin' }
 ]
+
+// 全屏状态
+const isFullscreen = ref(false)
+
+const updateFullscreenState = () => {
+  isFullscreen.value = !!document.fullscreenElement
+}
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', updateFullscreenState)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', updateFullscreenState)
+})
+
+const handleToggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {
+      ElMessage.warning('当前环境不支持全屏切换')
+    })
+  } else {
+    document.exitFullscreen().catch(() => {})
+  }
+}
 
 const isNavActive = (path: string) => {
   if (path === '/university') {
@@ -124,35 +178,41 @@ const handleLogout = () => {
 <style scoped lang="scss">
 .app-header {
   height: var(--header-height);
-  background: rgba(10, 17, 33, 0.88);
+  background: var(--header-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(56, 189, 248, 0.16);
+  border-bottom: 1px solid var(--header-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 18px;
   position: relative;
   z-index: 100;
   user-select: none;
   flex-shrink: 0;
-  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.2);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .header-glow {
   position: absolute;
   top: 0;
-  left: 25%;
-  right: 25%;
+  left: 20%;
+  right: 20%;
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.6), transparent);
   pointer-events: none;
+}
+
+html.light .header-glow {
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.4), transparent);
 }
 
 .header-left, .header-right {
   display: flex;
   align-items: center;
   flex: 1;
+  min-width: 0;
 }
 
 .header-left {
@@ -161,7 +221,7 @@ const handleLogout = () => {
 
 .header-right {
   justify-content: flex-end;
-  gap: 14px;
+  gap: 10px;
 }
 
 .header-center {
@@ -170,11 +230,13 @@ const handleLogout = () => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  padding: 0 16px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: opacity 0.2s;
 
   &:hover {
-    opacity: 0.95;
+    opacity: 0.92;
   }
 
   .brand-badge {
@@ -182,6 +244,7 @@ const handleLogout = () => {
     align-items: center;
     gap: 6px;
     margin-bottom: 2px;
+    white-space: nowrap;
 
     .pulse-dot {
       width: 5px;
@@ -193,24 +256,33 @@ const handleLogout = () => {
     }
 
     .badge-text {
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 600;
       letter-spacing: 1.5px;
-      color: rgba(148, 163, 184, 0.85);
+      color: var(--text-sub);
       font-family: var(--font-mono);
+      white-space: nowrap;
     }
   }
 
   .brand-title {
-    font-size: 19px;
+    font-size: 17px;
     font-weight: 700;
-    letter-spacing: 1.8px;
+    letter-spacing: 1.2px;
     margin: 0;
+    white-space: nowrap;
     background: linear-gradient(180deg, #ffffff 0%, #e0f2fe 75%, #bae6fd 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
   }
+}
+
+html.light .brand-title {
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  filter: none !important;
 }
 
 @keyframes pulse-ring {
@@ -221,17 +293,18 @@ const handleLogout = () => {
 .nav-menu {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
+  flex-wrap: nowrap;
 }
 
 .nav-item {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-sub);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
-  padding: 6px 11px;
+  padding: 5px 8px;
   border-radius: 6px;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -239,62 +312,110 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
 
   &:hover {
-    color: #e2e8f0;
-    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    background: rgba(148, 163, 184, 0.1);
   }
 
   &.active {
     color: var(--primary-light);
-    background: rgba(56, 189, 248, 0.12);
-    border-color: rgba(56, 189, 248, 0.35);
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+    background: rgba(14, 165, 233, 0.12);
+    border-color: rgba(14, 165, 233, 0.35);
 
     .nav-indicator {
       position: absolute;
       bottom: -1px;
-      left: 20%;
-      right: 20%;
+      left: 15%;
+      right: 15%;
       height: 2px;
       background: var(--primary-light);
       border-radius: 1px;
-      box-shadow: 0 0 6px var(--primary-light);
     }
+  }
+}
+
+html.light .nav-item.active {
+  color: #0284c7;
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  .nav-indicator {
+    background: #0284c7;
   }
 }
 
 .header-divider {
   width: 1px;
-  height: 24px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 22px;
+  background: var(--border-color);
   flex-shrink: 0;
+}
+
+.tool-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-sub);
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  .theme-icon {
+    font-size: 13px;
+    line-height: 1;
+  }
+
+  &:hover {
+    color: var(--primary-light);
+    border-color: var(--primary-light);
+    background: rgba(14, 165, 233, 0.1);
+  }
+}
+
+html.light .tool-btn:hover {
+  color: #0284c7;
+  border-color: #0284c7;
+  background: #e0f2fe;
 }
 
 .user-meta {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
 .user-badge {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: 20px;
-  font-size: 12.5px;
-  color: #e2e8f0;
+  font-size: 12px;
+  color: var(--text-main);
 
   .user-avatar {
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(99, 102, 241, 0.25));
-    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.25), rgba(99, 102, 241, 0.25));
+    border: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -303,7 +424,7 @@ const handleLogout = () => {
 
   .user-name {
     font-weight: 500;
-    max-width: 90px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -313,21 +434,79 @@ const handleLogout = () => {
 .logout-btn {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   background: rgba(244, 63, 94, 0.1);
   border: 1px solid rgba(244, 63, 94, 0.3);
-  color: #fda4af;
+  color: var(--danger);
   cursor: pointer;
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11.5px;
   transition: all 0.2s ease;
 
   &:hover {
     background: var(--danger);
     border-color: var(--danger);
     color: #ffffff;
-    box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.35);
+  }
+}
+
+html.light {
+  .user-badge {
+    background: #ffffff !important;
+    border-color: #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .logout-btn {
+    background: #fff1f2 !important;
+    border-color: #fecdd3 !important;
+    color: #e11d48 !important;
+    &:hover {
+      background: #e11d48 !important;
+      color: #ffffff !important;
+      border-color: #e11d48 !important;
+      box-shadow: 0 2px 8px rgba(225, 29, 72, 0.25) !important;
+    }
+  }
+}
+
+@media (max-width: 1536px) {
+  .brand-title {
+    font-size: 15px !important;
+  }
+  .nav-item {
+    padding: 3.5px 5.5px !important;
+    font-size: 11.5px !important;
+  }
+}
+
+@media (max-width: 1366px) {
+  .app-header {
+    padding: 0 10px !important;
+  }
+  .brand-badge {
+    display: none !important;
+  }
+  .brand-title {
+    font-size: 14px !important;
+  }
+  .nav-item {
+    padding: 3px 4.5px !important;
+    font-size: 11px !important;
+  }
+  .btn-label {
+    display: none; /* 较窄视口仅保留图标 */
+  }
+}
+
+@media (max-width: 1120px) {
+  .brand-title {
+    font-size: 13px !important;
+  }
+  .user-meta .user-name {
+    display: none;
   }
 }
 </style>

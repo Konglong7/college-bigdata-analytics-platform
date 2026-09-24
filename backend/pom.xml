@@ -56,6 +56,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- H2 Database for Zero-Config Cloud Demo & Testing Fallback -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+        </dependency>
+
         <!-- JJWT (Java JWT) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

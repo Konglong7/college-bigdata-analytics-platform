@@ -9,10 +9,10 @@ spring:
   application:
     name: univ-bigdata-backend
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/univ_bigdata_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=true}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    # 默认使用嵌入式轻量数据库（零配置即开即用），若配置了外部 MySQL/TiDB 环境变量则无缝切换
+    url: ${SPRING_DATASOURCE_URL:jdbc:h2:mem:univ_bigdata_db;MODE=MySQL;NON_KEYWORDS=YEAR;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     hikari:
       maximum-pool-size: 5
       minimum-idle: 2

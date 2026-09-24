@@ -6,6 +6,7 @@ import com.univ.bigdata.dto.UniversityQueryDto;
 import com.univ.bigdata.service.UniversityService;
 import com.univ.bigdata.vo.UnivDetailVo;
 import com.univ.bigdata.vo.UniversityCardVo;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ public class UniversityController {
     private final UniversityService universityService;
 
     @GetMapping("/page")
-    public Result<Page<UniversityCardVo>> pageUniversities(UniversityQueryDto queryDto) {
+    public Result<Page<UniversityCardVo>> pageUniversities(@Valid UniversityQueryDto queryDto) {
         Page<UniversityCardVo> page = universityService.pageUniversities(queryDto);
         return Result.success(page);
     }

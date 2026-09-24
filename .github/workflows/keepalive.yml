@@ -13,3 +13,4 @@ jobs:
       - name: Ping College BigData Analytics Platform Render Service
         run: |
           curl -s -o /dev/null -w "%{http_code}" -m 30 "https://college-bigdata-analytics-platform.onrender.com" || true
+          curl -s -o /dev/null -w "%{http_code}" -m 30 "https://college-bigdata-analytics-platform.onrender.com/api/dashboard/statistics" || true

@@ -66,20 +66,6 @@
           </div>
         </el-form-item>
 
-        <el-form-item v-if="isRegister">
-          <div class="form-input-wrap">
-            <span class="input-icon">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-              </svg>
-            </span>
-            <select v-model="form.role" class="dv-select">
-              <option value="ROLE_USER">普通用户 (可查询/查看图表)</option>
-              <option value="ROLE_ADMIN">系统管理员 (全系统管理权限)</option>
-            </select>
-          </div>
-        </el-form-item>
-
         <div class="form-actions">
           <button class="dv-btn submit-btn" :disabled="loading" @click.prevent="handleSubmit">
             {{ loading ? '处理中...' : (isRegister ? '立即注册' : '登 录 系 统') }}
@@ -112,8 +98,7 @@ const captchaRef = ref<InstanceType<typeof Captcha> | null>(null)
 const form = reactive({
   username: '',
   password: '',
-  captcha: '',
-  role: 'ROLE_USER'
+  captcha: ''
 })
 
 const fillAdmin = () => {
@@ -154,8 +139,7 @@ const handleSubmit = async () => {
     if (isRegister.value) {
       await register({
         username: form.username,
-        password: form.password,
-        role: form.role
+        password: form.password
       })
       ElMessage.success('注册成功，请登录')
       isRegister.value = false

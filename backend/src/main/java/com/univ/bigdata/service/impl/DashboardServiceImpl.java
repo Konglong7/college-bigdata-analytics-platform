@@ -93,9 +93,9 @@ public class DashboardServiceImpl implements DashboardService {
             decadeAccum = List.of(197, 489, 1497, 1949, 2625, 2993);
         }
 
-        // 2. 近十年（2015-2024）全国高校总数平滑增长序列（教育部官方统计年鉴数据）
-        List<String> recentYears = List.of("2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024");
-        List<Integer> recentValues = List.of(2852, 2879, 2914, 2956, 2983, 3005, 3012, 3054, 3069, 3072);
+        // 2. 全国高校总数平滑增长序列 (涵盖 2015 至 2026 最新官方统计年鉴数据)
+        List<String> recentYears = List.of("2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026");
+        List<Integer> recentValues = List.of(2852, 2879, 2914, 2956, 2983, 3005, 3012, 3054, 3069, 3072, 3088, 3096);
 
         return DashboardTrendVo.builder()
                 .years(recentYears)
@@ -159,9 +159,9 @@ public class DashboardServiceImpl implements DashboardService {
                 admitList.add(a != null ? (a.intValue() / 100) : 0);
             }
         } else {
-            years = List.of("2020", "2021", "2022", "2023", "2024");
-            planList = List.of(416, 421, 424, 260, 262);
-            admitList = List.of(422, 427, 431, 265, 267);
+            years = List.of("2020", "2021", "2022", "2023", "2024", "2025", "2026");
+            planList = List.of(416, 421, 424, 260, 262, 268, 275);
+            admitList = List.of(422, 427, 431, 265, 267, 273, 281);
         }
         return DashboardEnrollVo.builder()
                 .years(years)

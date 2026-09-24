@@ -5,24 +5,37 @@
       <div class="spec-group">
         <div class="spec-item">
           <span class="label">核心算法模型：</span>
-          <span class="val">{{ metrics.modelName }}</span>
+          <span class="val">{{ metrics?.modelName || '-' }}</span>
         </div>
         <div class="spec-item">
           <span class="label">历史训练窗口：</span>
-          <span class="val">{{ metrics.trainWindow }}</span>
+          <span class="val">{{ metrics?.trainWindow || '-' }}</span>
         </div>
         <div class="spec-item">
           <span class="label">预测推演周期：</span>
-          <span class="val">{{ metrics.predictPeriod }}</span>
+          <span class="val">{{ metrics?.predictPeriod || '-' }}</span>
         </div>
       </div>
       <div class="metrics-chips-wrap">
-        <div class="metric-chip">MAE: <strong>{{ metrics.mae }}</strong></div>
-        <div class="metric-chip">RMSE: <strong>{{ metrics.rmse }}</strong></div>
+        <div class="metric-chip">MAE: <strong>{{ metrics?.mae ?? '-' }}</strong></div>
+        <div class="metric-chip">RMSE: <strong>{{ metrics?.rmse ?? '-' }}</strong></div>
         <div class="metric-chip chip-success">
-          置信拟合度 R²: <strong>{{ metrics.r2 }}</strong>
+          置信拟合度 R²: <strong>{{ metrics?.r2 ?? '-' }}</strong>
         </div>
       </div>
+    </div>
+
+    <div v-if="predictionLoad.state.value === 'error'" class="data-status error-status">
+      {{ predictionLoad.errorMessage.value }}
+      <button class="dv-btn" @click="loadData">重试</button>
+    </div>
+    <div v-else-if="predictionLoad.state.value === 'empty'" class="data-status">
+      当前没有可用的预测结果，请先运行模型训练脚本并写入 prediction_result 表。
+    </div>
+    <div v-else-if="metrics" class="data-source-note">
+      数据来源：{{ metrics.dataSource || 'prediction_result' }}
+      <span v-if="metrics.generatedAt">· 生成时间：{{ metrics.generatedAt }}</span>
+      · 页面中的虚线为模型预测值，不代表已发生的统计结果
     </div>
 
     <!-- 中间：高校总量增长与热门专业新增预测 -->
@@ -59,6 +72,8 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import DvBorderBox from '@/components/DvBorderBox/index.vue'
 import { getModelMetrics, getPredictionTrends, ModelMetricsData } from '@/api/predict'
+import { getChartTheme, onThemeChange } from '@/utils/theme'
+import { createLoadState } from '@/utils/loadState'
 
 const univChartRef = ref<HTMLDivElement | null>(null)
 const majorChartRef = ref<HTMLDivElement | null>(null)
@@ -75,47 +90,31 @@ const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
   return chart
 }
 
-const metrics = ref<ModelMetricsData>({
-  modelName: 'Linear Regression & Polynomial Ridge (Scikit-learn)',
-  trainWindow: '2015 - 2025',
-  predictPeriod: '未来5年 (2026 - 2030)',
-  mae: 3.14,
-  rmse: 4.82,
-  r2: '96.8%'
-})
-
-const baseChartStyle = {
-  textStyle: { color: '#8ba2d4' },
-  grid: { top: 35, right: 20, bottom: 25, left: 45 },
-  tooltip: {
-    backgroundColor: 'rgba(5, 18, 43, 0.9)',
-    borderColor: '#00e5ff',
-    borderWidth: 1,
-    textStyle: { color: '#fff' }
-  }
-}
+const metrics = ref<ModelMetricsData | null>(null)
+const predictionLoad = createLoadState()
 
 // 1. 高校数量增长预测
 const initUnivChart = (years: string[], history: Array<number | null>, predict: Array<number | null>) => {
   const chart = registerChart(univChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
 
   chart.setOption({
-    ...baseChartStyle,
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['历史统计值', '线性推演预测'], textStyle: { color: '#8ba2d4' }, top: 5 },
+    tooltip: { ...ct.tooltip, trigger: 'axis' },
+    textStyle: { color: ct.textColor },
+    legend: { data: ['历史统计值', '线性推演预测'], textStyle: { color: ct.textColor }, top: 5 },
     xAxis: {
       type: 'category',
       data: years,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
       min: 2800,
       max: 3400,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      splitLine: { lineStyle: { color: ct.splitLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     series: [
       {
@@ -134,59 +133,61 @@ const initUnivChart = (years: string[], history: Array<number | null>, predict: 
         symbolSize: 6
       }
     ]
-  })
+  }, true)
 }
 
 // 2. 热门专业预测
-const initMajorChart = (years: string[], ai: number[], bigdata: number[], se: number[]) => {
+const initMajorChart = (years: string[], ai: Array<number | null>, bigdata: Array<number | null>, se: Array<number | null>) => {
   const chart = registerChart(majorChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
 
   chart.setOption({
-    ...baseChartStyle,
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['人工智能', '大数据技术', '软件工程'], textStyle: { color: '#8ba2d4' }, top: 5 },
+    tooltip: { ...ct.tooltip, trigger: 'axis' },
+    textStyle: { color: ct.textColor },
+    legend: { data: ['人工智能', '大数据技术', '软件工程'], textStyle: { color: ct.textColor }, top: 5 },
     xAxis: {
       type: 'category',
       data: years,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      splitLine: { lineStyle: { color: ct.splitLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     series: [
       { name: '人工智能', type: 'line', smooth: true, data: ai, itemStyle: { color: '#00e5ff' } },
       { name: '大数据技术', type: 'line', smooth: true, data: bigdata, itemStyle: { color: '#00ffaa' } },
       { name: '软件工程', type: 'line', smooth: true, data: se, itemStyle: { color: '#faad14' } }
     ]
-  })
+  }, true)
 }
 
 // 3. 招生规模置信带预测
-const initEnrollChart = (years: string[], enrollTotal: number[], populationLimit: number[]) => {
+const initEnrollChart = (years: string[], enrollTotal: Array<number | null>, populationLimit: Array<number | null>) => {
   const chart = registerChart(enrollChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
 
   chart.setOption({
-    ...baseChartStyle,
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['高考录取总数预测', '适龄生源上限'], textStyle: { color: '#8ba2d4' }, top: 5 },
+    tooltip: { ...ct.tooltip, trigger: 'axis' },
+    textStyle: { color: ct.textColor },
+    legend: { data: ['高考录取总数预测', '适龄生源上限'], textStyle: { color: ct.textColor }, top: 5 },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: years,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
       name: '万人',
       min: 800,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      splitLine: { lineStyle: { color: ct.splitLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     series: [
       {
@@ -204,68 +205,52 @@ const initEnrollChart = (years: string[], enrollTotal: number[], populationLimit
         itemStyle: { color: '#ff4d4f' }
       }
     ]
-  })
+  }, true)
 }
 
 const loadData = async () => {
-  try {
-    const resMetrics = await getModelMetrics()
-    if (resMetrics) metrics.value = resMetrics
-  } catch {}
-
-  let univYears = ['2018', '2020', '2022', '2024', '2026(E)', '2028(E)', '2030(E)']
-  let history: Array<number | null> = [2956, 3005, 3054, 3072, null, null, null]
-  let predict: Array<number | null> = [null, null, null, 3072, 3125, 3180, 3240]
-
-  let majorYears = ['2023', '2024', '2025(E)', '2026(E)', '2027(E)', '2028(E)']
-  let ai = [80, 60, 52, 45, 40, 38]
-  let bigdata = [120, 90, 75, 62, 55, 50]
-  let se = [30, 25, 22, 20, 18, 18]
-
-  let enrollYears = ['2022', '2023', '2024', '2025(E)', '2026(E)', '2027(E)', '2028(E)', '2029(E)', '2030(E)']
-  let enrollTotal = [1014, 1042, 1090, 1085, 1070, 1050, 1020, 990, 960]
-  let populationLimit = [1193, 1291, 1342, 1310, 1280, 1220, 1180, 1120, 1080]
+  predictionLoad.start()
+  chartInstances.forEach(chart => chart.clear())
 
   try {
-    const resTrends = await getPredictionTrends()
-    if (resTrends) {
-      if (resTrends.univ) {
-        univYears = resTrends.univ.years
-        history = resTrends.univ.history
-        predict = resTrends.univ.predict
-      }
-      if (resTrends.major) {
-        majorYears = resTrends.major.years
-        ai = resTrends.major.ai
-        bigdata = resTrends.major.bigdata
-        se = resTrends.major.se
-      }
-      if (resTrends.enroll) {
-        enrollYears = resTrends.enroll.years
-        enrollTotal = resTrends.enroll.enrollTotal
-        populationLimit = resTrends.enroll.populationLimit
-      }
+    const [resMetrics, resTrends] = await Promise.all([getModelMetrics(), getPredictionTrends()])
+    if (!resMetrics || !resTrends?.univ || !resTrends.major || !resTrends.enroll) {
+      predictionLoad.succeed(true)
+      return
     }
-  } catch {}
 
-  initUnivChart(univYears, history, predict)
-  initMajorChart(majorYears, ai, bigdata, se)
-  initEnrollChart(enrollYears, enrollTotal, populationLimit)
+    metrics.value = resMetrics
+    initUnivChart(resTrends.univ.years, resTrends.univ.history, resTrends.univ.predict)
+    initMajorChart(resTrends.major.years, resTrends.major.ai, resTrends.major.bigdata, resTrends.major.se)
+    initEnrollChart(resTrends.enroll.years, resTrends.enroll.enrollTotal, resTrends.enroll.populationLimit)
+    predictionLoad.succeed(false)
+  } catch (error) {
+    console.error('Failed to load prediction data:', error)
+    predictionLoad.fail('预测数据加载失败，请确认后端服务和 prediction_result 数据是否可用。')
+  }
 }
 
 const handleResize = () => {
   chartInstances.forEach(c => c.resize())
 }
 
+let unsubTheme: (() => void) | null = null
+
 onMounted(() => {
   nextTick(() => {
     loadData()
   })
   window.addEventListener('resize', handleResize)
+  unsubTheme = onThemeChange(() => {
+    loadData()
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (unsubTheme) {
+    unsubTheme()
+  }
   chartInstances.forEach(c => c.dispose())
   chartInstances.length = 0
 })
@@ -285,7 +270,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 10px 18px;
-  background: rgba(8, 24, 54, 0.7);
+  background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   flex-shrink: 0;
@@ -315,11 +300,11 @@ onUnmounted(() => {
 
 .metric-chip {
   padding: 3px 10px;
-  background: rgba(16, 137, 255, 0.2);
-  border: 1px solid var(--secondary-color);
+  background: rgba(16, 137, 255, 0.15);
+  border: 1px solid var(--border-color);
   border-radius: 3px;
   font-size: 12px;
-  color: #fff;
+  color: var(--text-main);
   &.chip-success {
     border-color: var(--success);
     color: var(--success);
@@ -331,5 +316,27 @@ onUnmounted(() => {
   display: flex;
   gap: 12px;
   flex: 1;
+}
+
+.data-status,
+.data-source-note {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
+}
+
+.data-source-note {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 </style>

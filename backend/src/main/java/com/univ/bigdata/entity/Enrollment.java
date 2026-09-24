@@ -24,6 +24,10 @@ public class Enrollment {
 
     private Integer year;
 
+    private String province;
+
+    private String subjectType;
+
     private Integer planNumber;
 
     private Integer admissionNumber;

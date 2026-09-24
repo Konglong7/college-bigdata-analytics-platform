@@ -45,7 +45,7 @@
 | :--- | :--- | :--- | :--- |
 | **代码托管** | **GitHub** | 永久免费 | 全球通用、集成 Actions CI/CD 流水线 |
 | **容器计算** | **Render Web Service** | 免费层（512MB RAM） | 支持多阶段 Dockerfile、自带泛域名 HTTPS 证书 |
-| **关系型数据库** | **TiDB Cloud Serverless** | 免费层（5GB 存储） | 100% 兼容 MySQL 8.0 协议、亚太节点低延迟、免运维 |
+| **双模数据引擎** | **嵌入式自动装载 + TiDB Cloud** | 永久免费 | 默认内置零配置自动装载引擎（开箱即用、防500异常）；亦支持无缝直连 TiDB Cloud MySQL 8.0 |
 | **心跳保活** | **GitHub Actions + Cron-Job.org** | 永久免费 | 双重守护，解决 Render 免费容器 15 分钟休眠问题 |
 
 ---
@@ -129,14 +129,15 @@ git push -u origin main
    - **Language / Runtime**：**Docker**（Render 会自动识别并运行根目录下的 Dockerfile）
    - **Instance Type**：**勾选 $0 / month Free**（512 MB RAM, 0.1 CPU）
 5. **配置环境变量（Environment Variables）**：
-   点击 **Add from .env** 按钮，粘贴以下内容（将对应参数替换为你真实的 TiDB 凭据）：
-
-   ```env
-   SPRING_PROFILES_ACTIVE=prod
-   SPRING_DATASOURCE_URL=jdbc:mysql://<你的TiDB主机>:4000/univ_bigdata_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=true
-   SPRING_DATASOURCE_USERNAME=<你的TiDB用户名>
-   SPRING_DATASOURCE_PASSWORD=<你的TiDB密码>
-   ```
+   - **方式一（推荐：零配置即开即用）**：
+     系统默认内置嵌入式零配置数据引擎，**无需填写任何数据库环境变量**！部署后系统将秒级自装载 34 所重点高校、全量录取、预测与指标事实数据，彻底杜绝云端数据库休眠或 500 异常。
+   - **方式二（可选：挂载外部 TiDB Cloud 分布式数据库）**：
+     若希望使用云端外部数据库持久化，点击 **Add Environment Variable** 添加以下变量：
+     ```env
+     SPRING_DATASOURCE_URL=jdbc:mysql://<你的TiDB主机>:4000/univ_bigdata_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=true
+     SPRING_DATASOURCE_USERNAME=<你的TiDB用户名>
+     SPRING_DATASOURCE_PASSWORD=<你的TiDB密码>
+     ```
 
 6. 点击 **Deploy web service**：
    - 容器编译约 2~3 分钟，当日志显示 `Tomcat started on port 10000` 且标记为 `Live` 后，即可直接访问！

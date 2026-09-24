@@ -1,0 +1,28 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: univ-bigdata-backend-test
+  datasource:
+    url: jdbc:h2:mem:univ_bigdata_test_db;MODE=MySQL;NON_KEYWORDS=YEAR;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password: ''
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+
+jwt:
+  secret: dW5pdi1iaWdkYXRhLW5hdGlvbmFsLWNvbGxlZ2UtYW5hbHlzaXMtMjAyNg==
+  expiration: 604800000
+  header: Authorization
+  token-prefix: "Bearer "

@@ -80,10 +80,16 @@
         <span class="chip chip-steady">稳妥梯度：{{ result.steadyList.length }} 所</span>
         <span class="chip chip-safe">保底梯度：{{ result.safeList.length }} 所</span>
       </div>
+      <div class="summary-actions">
+        <button class="dv-btn btn-export-doc" @click="handleExportVolunteer" title="导出当前推演方案为 Excel 决策清单">
+          <span>📄 导出志愿推演方案 (Excel)</span>
+        </button>
+      </div>
       <div class="summary-tip">
         💡 推荐原则：按“冲2~3所、稳4~6所、保2~3所”标准梯次填报，规避滑档与高分低就风险。
       </div>
     </div>
+
 
     <!-- 冲·稳·保 三列看板泳道 -->
     <div class="lanes-container" v-if="result">
@@ -147,10 +153,11 @@
             </div>
 
             <div class="rc-actions">
-              <button class="rc-btn btn-compare" @click="addToCompare(item.id)">+ 加入对比</button>
+              <button class="rc-btn btn-compare" @click="addToCompare(item.id, item.schoolName)">+ 加入对比</button>
               <button class="rc-btn btn-detail" @click="goToDetail(item.id)">画像详情 ➔</button>
               <a :href="item.gaokaoSite" target="_blank" class="rc-btn btn-gaokao">掌上高考 ↗</a>
             </div>
+
           </div>
 
           <div v-if="!result.rushList.length" class="empty-lane">
@@ -221,10 +228,11 @@
             </div>
 
             <div class="rc-actions">
-              <button class="rc-btn btn-compare" @click="addToCompare(item.id)">+ 加入对比</button>
+              <button class="rc-btn btn-compare" @click="addToCompare(item.id, item.schoolName)">+ 加入对比</button>
               <button class="rc-btn btn-detail" @click="goToDetail(item.id)">画像详情 ➔</button>
               <a :href="item.gaokaoSite" target="_blank" class="rc-btn btn-gaokao">掌上高考 ↗</a>
             </div>
+
           </div>
 
           <div v-if="!result.steadyList.length" class="empty-lane">
@@ -295,7 +303,7 @@
             </div>
 
             <div class="rc-actions">
-              <button class="rc-btn btn-compare" @click="addToCompare(item.id)">+ 加入对比</button>
+              <button class="rc-btn btn-compare" @click="addToCompare(item.id, item.schoolName)">+ 加入对比</button>
               <button class="rc-btn btn-detail" @click="goToDetail(item.id)">画像详情 ➔</button>
               <a :href="item.gaokaoSite" target="_blank" class="rc-btn btn-gaokao">掌上高考 ↗</a>
             </div>
@@ -309,8 +317,30 @@
         </div>
       </div>
     </div>
+
+    <!-- 底部悬浮对比快捷工具栏 -->
+    <transition name="fade-slide">
+      <div v-if="compareList.length > 0" class="compare-float-bar">
+        <div class="float-bar-info">
+          <span class="bar-title">⚖️ 已选高校对比清单 ({{ compareList.length }}/4)：</span>
+          <div class="bar-chips">
+            <span v-for="c in compareList" :key="c.id" class="selected-chip">
+              {{ c.name }}
+              <i class="close-btn" title="移出清单" @click="removeFromCompare(c.id)">✕</i>
+            </span>
+          </div>
+        </div>
+        <div class="float-bar-actions">
+          <button class="btn-clear" @click="clearCompare">清空</button>
+          <button class="dv-btn btn-go-compare" @click="goToCompare">
+            立即开始多校 PK 对比 ➔
+          </button>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
+
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
@@ -359,15 +389,94 @@ const goToDetail = (id: number) => {
   router.push(`/university/${id}`)
 }
 
-const addToCompare = (id: number) => {
-  ElMessage.success('已添加至对比，正在跳转高校对比工作台...')
-  router.push({ path: '/compare', query: { addId: id } })
+// 已选对比高校列表 (上限 4 所)
+const compareList = ref<Array<{ id: number; name: string }>>([])
+
+const addToCompare = (id: number, name: string) => {
+  if (compareList.value.some(c => c.id === id)) {
+    ElMessage.info(`《${name}》已在对比清单中`)
+    return
+  }
+  if (compareList.value.length >= 4) {
+    ElMessage.warning('对比清单最多容纳 4 所高校，请先开始对比或移除一所')
+    return
+  }
+  compareList.value.push({ id, name })
+  ElMessage.success(`已添加《${name}》到对比清单 (${compareList.value.length}/4)`)
+}
+
+const removeFromCompare = (id: number) => {
+  compareList.value = compareList.value.filter(c => c.id !== id)
+}
+
+const clearCompare = () => {
+  compareList.value = []
+}
+
+const goToCompare = () => {
+  if (compareList.value.length < 2) {
+    ElMessage.warning('请至少添加 2 所高校进行综合对比')
+    return
+  }
+  const ids = compareList.value.map(c => c.id).join(',')
+  router.push({ path: '/compare', query: { ids } })
+}
+
+// 导出当前志愿推演方案为 Excel (CSV)
+const handleExportVolunteer = () => {
+  if (!result.value) {
+    ElMessage.warning('暂无推演方案可供导出')
+    return
+  }
+
+  const rows: string[] = [
+    ['志愿梯度', '高校名称', '软科综合排名', '办学层次', '办学类型', '省份', '城市', '预测调档线(分)', '考分分差(分)', '录取预估概率', '优势推荐专业', '系统推荐决策依据'].join(',')
+  ]
+
+  const formatList = (list: any[], tier: string) => {
+    list.forEach(item => {
+      const majors = (item.topMajors || []).join(';')
+      const reason = `"${(item.recommendReason || '').replace(/"/g, '""')}"`
+      rows.push([
+        tier,
+        item.schoolName,
+        item.ruankeRank ? `#${item.ruankeRank}` : '-',
+        item.schoolLevel || '-',
+        item.schoolType || '-',
+        item.province,
+        item.city,
+        item.predictScore,
+        item.scoreDiff,
+        `${item.probPercent}%`,
+        `"${majors}"`,
+        reason
+      ].join(','))
+    })
+  }
+
+  formatList(result.value.rushList, '冲刺梯队 (博一博)')
+  formatList(result.value.steadyList, '稳妥梯队 (主攻首选)')
+  formatList(result.value.safeList, '保底梯队 (兜底保底)')
+
+  const csvContent = '\uFEFF' + rows.join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `高考志愿梯次推演决策方案_${result.value.userProvince}_${result.value.subjectType}_${result.value.userScore}分.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+
+  ElMessage.success('志愿填报方案 Excel 报表已成功生成并下载！')
 }
 
 onMounted(() => {
   handleMatch()
 })
 </script>
+
 
 <style scoped lang="scss">
 .recommend-page {
@@ -773,4 +882,201 @@ onMounted(() => {
   background: rgba(255, 77, 79, 0.15);
   color: #ff9c6e;
 }
+
+/* 浮动对比快捷工具栏 */
+.compare-float-bar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--dialog-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  border-radius: 30px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 99;
+  backdrop-filter: blur(16px);
+}
+
+.float-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-light);
+  white-space: nowrap;
+}
+
+.bar-chips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.selected-chip {
+  background: rgba(14, 165, 233, 0.15);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  .close-btn {
+    cursor: pointer;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-style: normal;
+    &:hover { color: var(--danger); }
+  }
+}
+
+.float-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 6px;
+  &:hover { color: var(--danger); }
+}
+
+.btn-go-compare {
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 20px;
+}
+
+.summary-actions {
+  margin-left: auto;
+}
+
+.btn-export-doc {
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* 浅色主题全面深度适配 */
+html.light {
+  .recommend-filter-bar, .summary-bar {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+  }
+  .lane-col {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+  }
+  .lane-header {
+    border-bottom-color: #e2e8f0 !important;
+  }
+  .lane-title h3 {
+    color: #0f172a !important;
+  }
+  .lane-sub {
+    color: #64748b !important;
+  }
+  .recommend-card {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06) !important;
+  }
+  .rc-title {
+    color: #0f172a !important;
+    &:hover { color: #0284c7 !important; }
+  }
+  .rc-tag {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+  }
+  .rc-reason {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  .rc-metrics {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+  }
+  .metric-box .m-lbl {
+    color: #64748b !important;
+  }
+  .metric-box .m-val {
+    color: #0f172a !important;
+  }
+  .major-pill {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border: 1px solid #bae6fd !important;
+  }
+  .rc-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border-color: #cbd5e1 !important;
+    &:hover {
+      background: #e0f2fe !important;
+      color: #0284c7 !important;
+      border-color: #38bdf8 !important;
+    }
+  }
+  .btn-compare {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-color: #bae6fd !important;
+    &:hover { background: #bae6fd !important; }
+  }
+  .btn-detail {
+    background: #d1fae5 !important;
+    color: #059669 !important;
+    border-color: #a7f3d0 !important;
+    &:hover { background: #a7f3d0 !important; }
+  }
+  .prob-rush { background: #fee2e2 !important; color: #dc2626 !important; }
+  .prob-steady { background: #e0f2fe !important; color: #0284c7 !important; }
+  .prob-safe { background: #d1fae5 !important; color: #059669 !important; }
+  .chip-rush { background: #fee2e2 !important; color: #dc2626 !important; border-color: #fca5a5 !important; }
+  .chip-steady { background: #e0f2fe !important; color: #0284c7 !important; border-color: #bae6fd !important; }
+  .chip-safe { background: #d1fae5 !important; color: #059669 !important; border-color: #a7f3d0 !important; }
+  .quick-score-btn {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border-color: #cbd5e1 !important;
+    &.active {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+      border-color: #0284c7 !important;
+    }
+  }
+  .empty-lane {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+    color: #64748b !important;
+  }
+  .btn-expand-scope {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0284c7 !important;
+    &:hover {
+      background: #e0f2fe !important;
+      border-color: #7dd3fc !important;
+    }
+  }
+}
 </style>
+

@@ -1,7 +1,15 @@
 <template>
-  <div class="dashboard-page">
-    <!-- 顶部核心指标看板 -->
-    <div class="stat-banner">
+  <ScreenAdapter :width="1920" :height="980" @resize="handleScreenResize">
+    <div class="dashboard-page">
+      <div v-if="dashboardLoad.state.value === 'error'" class="data-status error-status">
+        {{ dashboardLoad.errorMessage.value }}
+        <button class="dv-btn" @click="loadAllData">重试</button>
+      </div>
+      <div v-else-if="dashboardLoad.state.value === 'empty'" class="data-status">
+        当前没有可用的大屏统计数据，请检查数据库初始化状态。
+      </div>
+      <!-- 顶部核心指标看板 -->
+      <div class="stat-banner">
       <DvBorderBox class="stat-card">
         <div class="stat-icon icon-cyan">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,14 +112,18 @@
       </DvBorderBox>
     </div>
   </div>
+  </ScreenAdapter>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import * as echarts from 'echarts'
+import ScreenAdapter from '@/components/ScreenAdapter/index.vue'
 import DvBorderBox from '@/components/DvBorderBox/index.vue'
 import { ensureChinaMap } from '@/utils/chinaMap'
+import { getChartTheme, onThemeChange } from '@/utils/theme'
+import { createLoadState } from '@/utils/loadState'
 import {
   getStatistics,
   getMapDistribution,
@@ -133,11 +145,12 @@ const router = useRouter()
 
 // 统计指标
 const stats = ref<DashboardStats>({
-  totalUniversity: 2993,
-  undergraduateCount: 1485,
-  majorCount: 29,
-  provinceCount: 33
+  totalUniversity: 0,
+  undergraduateCount: 0,
+  majorCount: 0,
+  provinceCount: 0
 })
+const dashboardLoad = createLoadState()
 
 // 图表 DOM 引用
 const mapChartRef = ref<HTMLDivElement | null>(null)
@@ -159,20 +172,19 @@ const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
   return chart
 }
 
+// 缓存图表数据供主题切换快速重绘
+let cachedMapData: MapDataItem[] = []
+let cachedTypeData: TypeRatioItem[] = []
+let cachedTrendData: GrowthTrendData | null = null
+let cachedRankData: ProvinceTop10Data | null = null
+let cachedHotMajorData: HotMajorItem[] = []
+let cachedEnrollData: EnrollTrendData | null = null
+let unregisterTheme: (() => void) | null = null
+
 // 现代学术智能调色板
 const colorPalette = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f87171', '#c084fc', '#22d3ee', '#fb7185']
 
-const baseChartStyle = {
-  textStyle: { color: '#94a3b8' },
-  grid: { top: 35, right: 20, bottom: 25, left: 45 },
-  tooltip: {
-    backgroundColor: 'rgba(13, 22, 41, 0.95)',
-    borderColor: 'rgba(56, 189, 248, 0.25)',
-    borderWidth: 1,
-    textStyle: { color: '#f8fafc', fontSize: 12 },
-    extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;'
-  }
-}
+
 
 // 省份全称到简称映射表
 const provinceNameMap: Record<string, string> = {
@@ -216,23 +228,21 @@ const provinceNameMap: Record<string, string> = {
 const initMapChart = (data: MapDataItem[]) => {
   const chart = registerChart(mapChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
 
   chart.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(13, 22, 41, 0.95)',
-      borderColor: 'rgba(56, 189, 248, 0.3)',
-      textStyle: { color: '#f8fafc' },
-      extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;',
+      ...theme.tooltip,
       formatter: (params: any) => {
         const val = params.value != null && !isNaN(params.value) ? params.value : '暂无数据'
         return `
           <div style="font-weight:600; color:#38bdf8; margin-bottom:4px; font-size:13px;">${params.name}</div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="color:#94a3b8;">高校数量:</span>
-            <span style="color:#ffffff; font-weight:bold; font-family:'DIN Alternate',sans-serif; font-size:15px;">${val}</span> 所
+            <span style="color:${theme.textColor};">高校数量:</span>
+            <span style="color:${theme.titleColor}; font-weight:bold; font-family:'DIN Alternate',sans-serif; font-size:15px;">${val}</span> 所
           </div>
-          <div style="font-size:11px; color:#64748b; margin-top:4px;">点击下钻查看省内高校名录 ↗</div>
+          <div style="font-size:11px; color:#0ea5e9; margin-top:4px;">点击下钻查看省内高校名录 ↗</div>
         `
       }
     },
@@ -245,8 +255,10 @@ const initMapChart = (data: MapDataItem[]) => {
       itemHeight: 75,
       text: ['高', '低'],
       calculable: true,
-      inRange: { color: ['#0c1938', '#1e3a8a', '#0284c7', '#38bdf8'] },
-      textStyle: { color: '#94a3b8', fontSize: 11 }
+      inRange: theme.isDark 
+        ? { color: ['#0c1938', '#1e3a8a', '#0284c7', '#38bdf8'] }
+        : { color: ['#e0f2fe', '#7dd3fc', '#0284c7', '#1d4ed8'] },
+      textStyle: { color: theme.textColor, fontSize: 11 }
     },
     series: [{
       name: '高校分布',
@@ -257,10 +269,10 @@ const initMapChart = (data: MapDataItem[]) => {
       layoutCenter: ['50%', '50%'],
       layoutSize: '95%',
       zoom: 1.15,
-      label: { show: true, color: '#94a3b8', fontSize: 10 },
+      label: { show: true, color: theme.textColor, fontSize: 10 },
       itemStyle: {
-        areaColor: '#0e1d3d',
-        borderColor: 'rgba(56, 189, 248, 0.3)',
+        areaColor: theme.isDark ? '#0e1d3d' : '#e2e8f0',
+        borderColor: theme.isDark ? 'rgba(56, 189, 248, 0.3)' : '#cbd5e1',
         borderWidth: 0.8
       },
       emphasis: {
@@ -274,6 +286,7 @@ const initMapChart = (data: MapDataItem[]) => {
       data
     }]
   })
+
 
   // 地图省份点击下钻
   chart.off('click')
@@ -289,19 +302,17 @@ const initMapChart = (data: MapDataItem[]) => {
 const initTypeChart = (data: TypeRatioItem[]) => {
   const chart = registerChart(typeChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
 
   chart.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(13, 22, 41, 0.95)',
-      borderColor: 'rgba(56, 189, 248, 0.25)',
-      textStyle: { color: '#f8fafc' },
-      extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;',
+      ...theme.tooltip,
       formatter: '{b}: <span style="font-weight:bold;color:#38bdf8;">{c}</span> 所 ({d}%)'
     },
     legend: {
       bottom: '2%',
-      textStyle: { color: '#94a3b8', fontSize: 11 },
+      textStyle: { color: theme.textColor, fontSize: 11 },
       itemWidth: 10,
       itemHeight: 10,
       itemGap: 12
@@ -313,14 +324,14 @@ const initTypeChart = (data: TypeRatioItem[]) => {
       radius: ['45%', '72%'],
       center: ['50%', '44%'],
       avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 6, borderColor: '#0d1629', borderWidth: 2 },
+      itemStyle: { borderRadius: 6, borderColor: theme.isDark ? '#0d1629' : '#ffffff', borderWidth: 2 },
       label: { show: false, position: 'center' },
       emphasis: {
         label: {
           show: true,
           fontSize: 15,
           fontWeight: 'bold',
-          color: '#ffffff',
+          color: theme.titleColor,
           formatter: '{b}\n{d}%'
         }
       },
@@ -329,9 +340,9 @@ const initTypeChart = (data: TypeRatioItem[]) => {
   })
 }
 
+
 // 3. 趋势图表模式
 const trendMode = ref<'decade' | 'tenYear'>('decade')
-let cachedTrendData: GrowthTrendData | null = null
 
 const switchTrendMode = (mode: 'decade' | 'tenYear') => {
   trendMode.value = mode
@@ -346,6 +357,8 @@ const initTrendChart = (data: GrowthTrendData) => {
   const chart = registerChart(trendChartRef.value)
   if (!chart) return
 
+  const theme = getChartTheme()
+
   if (trendMode.value === 'decade') {
     const labels = data.decadeLabels && data.decadeLabels.length
       ? data.decadeLabels
@@ -358,51 +371,52 @@ const initTrendChart = (data: GrowthTrendData) => {
       : [197, 489, 1497, 1949, 2625, 2993]
 
     chart.setOption({
-      ...baseChartStyle,
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(13, 22, 41, 0.95)',
-        borderColor: 'rgba(56, 189, 248, 0.3)',
-        textStyle: { color: '#f8fafc' },
-        extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;',
+        ...theme.tooltip,
         formatter: (params: any) => {
           if (!Array.isArray(params)) return ''
           let tip = `<div style="font-weight:600;color:#38bdf8;margin-bottom:4px;">${params[0].name}</div>`
           params.forEach((p: any) => {
-            tip += `<div>${p.marker} ${p.seriesName}: <span style="font-weight:bold;color:#fff;">${p.value}</span> 所</div>`
+            tip += `<div>${p.marker} ${p.seriesName}: <span style="font-weight:bold;color:${theme.titleColor};">${p.value}</span> 所</div>`
           })
           return tip
         }
       },
       legend: {
         data: ['时期新建', '历史累计'],
-        textStyle: { color: '#94a3b8', fontSize: 11 },
+        textStyle: { color: theme.textColor, fontSize: 11 },
         top: 4,
         right: 10,
         itemWidth: 10,
         itemHeight: 10
       },
-      grid: { top: 32, right: 40, bottom: 25, left: 45 },
+      grid: { top: 32, right: 35, bottom: 40, left: 45 },
       xAxis: {
         type: 'category',
         data: labels,
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.12)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 10, interval: 0 }
+        axisLine: { lineStyle: { color: theme.axisLineColor } },
+        axisLabel: { 
+          color: theme.textColor, 
+          fontSize: 9.5, 
+          interval: 0,
+          rotate: 22
+        }
       },
       yAxis: [
         {
           type: 'value',
           name: '新建',
-          nameTextStyle: { color: '#94a3b8', fontSize: 10 },
-          splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
-          axisLabel: { color: '#94a3b8', fontSize: 10 }
+          nameTextStyle: { color: theme.textColor, fontSize: 10 },
+          splitLine: { lineStyle: { color: theme.splitLineColor } },
+          axisLabel: { color: theme.textColor, fontSize: 10 }
         },
         {
           type: 'value',
           name: '累计',
-          nameTextStyle: { color: '#94a3b8', fontSize: 10 },
+          nameTextStyle: { color: theme.textColor, fontSize: 10 },
           splitLine: { show: false },
-          axisLabel: { color: '#94a3b8', fontSize: 10 }
+          axisLabel: { color: theme.textColor, fontSize: 10 }
         }
       ],
       series: [
@@ -434,27 +448,23 @@ const initTrendChart = (data: GrowthTrendData) => {
   } else {
     const minVal = Math.floor(Math.min(...data.values) / 50) * 50 - 50
     chart.setOption({
-      ...baseChartStyle,
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(13, 22, 41, 0.95)',
-        borderColor: 'rgba(56, 189, 248, 0.25)',
-        textStyle: { color: '#f8fafc' },
-        extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;'
+        ...theme.tooltip
       },
       legend: { show: false },
       grid: { top: 25, right: 20, bottom: 25, left: 48 },
       xAxis: {
         type: 'category',
         data: data.years,
-        axisLine: { lineStyle: { color: 'rgba(255,255,255,0.12)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 11 }
+        axisLine: { lineStyle: { color: theme.axisLineColor } },
+        axisLabel: { color: theme.textColor, fontSize: 11 }
       },
       yAxis: {
         type: 'value',
         min: minVal,
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
-        axisLabel: { color: '#94a3b8', fontSize: 11 }
+        splitLine: { lineStyle: { color: theme.splitLineColor } },
+        axisLabel: { color: theme.textColor, fontSize: 11 }
       },
       series: [{
         name: '全国高校总量',
@@ -478,6 +488,7 @@ const initTrendChart = (data: GrowthTrendData) => {
 const initRankChart = (data: ProvinceTop10Data) => {
   const chart = registerChart(rankChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
 
   const pairs = data.provinces.map((p, i) => ({ province: p, value: data.values[i] }))
   pairs.sort((a, b) => b.value - a.value)
@@ -486,14 +497,14 @@ const initRankChart = (data: ProvinceTop10Data) => {
   const sortedValues = top10.map(item => item.value).reverse()
 
   chart.setOption({
-    ...baseChartStyle,
+    tooltip: { trigger: 'axis', ...theme.tooltip },
     grid: { top: 15, right: 35, bottom: 20, left: 55 },
     xAxis: { type: 'value', splitLine: { show: false } },
     yAxis: {
       type: 'category',
       data: sortedProvinces,
       axisLine: { show: false },
-      axisLabel: { color: '#94a3b8', fontSize: 11 }
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     series: [{
       type: 'bar',
@@ -505,7 +516,7 @@ const initRankChart = (data: ProvinceTop10Data) => {
         ]),
         borderRadius: [0, 4, 4, 0]
       },
-      label: { show: true, position: 'right', color: '#f8fafc', fontSize: 11, fontFamily: 'DIN Alternate, monospace' }
+      label: { show: true, position: 'right', color: theme.titleColor, fontSize: 11, fontFamily: 'DIN Alternate, monospace' }
     }]
   })
 }
@@ -514,24 +525,30 @@ const initRankChart = (data: ProvinceTop10Data) => {
 const initHotMajorChart = (data: HotMajorItem[]) => {
   const chart = registerChart(hotMajorChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
 
   chart.setOption({
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(13, 22, 41, 0.95)',
-      borderColor: 'rgba(56, 189, 248, 0.25)',
-      textStyle: { color: '#f8fafc' },
-      extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;'
+      ...theme.tooltip
     },
     color: colorPalette,
     series: [{
       name: '热门专业',
       type: 'pie',
-      radius: [14, '70%'],
+      radius: [10, '60%'],
       center: ['50%', '50%'],
       roseType: 'area',
-      itemStyle: { borderRadius: 4, borderColor: '#0d1629', borderWidth: 1 },
-      label: { color: '#94a3b8', fontSize: 10 },
+      itemStyle: { borderRadius: 4, borderColor: theme.isDark ? '#0d1629' : '#ffffff', borderWidth: 1 },
+      label: { 
+        color: theme.textColor, 
+        fontSize: 10,
+        formatter: '{b}'
+      },
+      labelLine: {
+        length: 5,
+        length2: 6
+      },
       data
     }]
   })
@@ -541,151 +558,223 @@ const initHotMajorChart = (data: HotMajorItem[]) => {
 const initEnrollChart = (data: EnrollTrendData) => {
   const chart = registerChart(enrollChartRef.value)
   if (!chart) return
+  const theme = getChartTheme()
+
+  const allVals = [...(data.undergraduate || []), ...(data.juniorCollege || [])].filter(v => v > 0)
+  const minV = allVals.length ? Math.floor(Math.min(...allVals) / 50) * 50 - 50 : 7800
+  const maxV = allVals.length ? Math.ceil(Math.max(...allVals) / 50) * 50 + 50 : 8200
 
   chart.setOption({
-    ...baseChartStyle,
     tooltip: { 
       trigger: 'axis',
-      backgroundColor: 'rgba(13, 22, 41, 0.95)',
-      borderColor: 'rgba(56, 189, 248, 0.25)',
-      textStyle: { color: '#f8fafc' },
-      extraCssText: 'box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); backdrop-filter: blur(12px); border-radius: 6px;'
+      ...theme.tooltip
     },
     legend: {
-      data: ['本科生', '专科生'],
-      textStyle: { color: '#94a3b8' },
+      data: ['计划招生', '实际录取'],
+      textStyle: { color: theme.textColor },
       top: 5
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: data.years,
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.12)' } },
-      axisLabel: { color: '#94a3b8', fontSize: 11 }
+      axisLine: { lineStyle: { color: theme.axisLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
       name: '万人',
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.06)' } },
-      axisLabel: { color: '#94a3b8', fontSize: 11 }
+      nameTextStyle: { color: theme.textColor },
+      min: minV,
+      max: maxV,
+      splitLine: { lineStyle: { color: theme.splitLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     series: [
       {
-        name: '本科生',
+        name: '计划招生',
         type: 'line',
-        stack: 'Total',
         smooth: true,
         itemStyle: { color: '#38bdf8' },
-        areaStyle: { color: 'rgba(56, 189, 248, 0.25)' },
+        lineStyle: { width: 2.5 },
+        areaStyle: { 
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(56, 189, 248, 0.3)' },
+            { offset: 1, color: 'rgba(56, 189, 248, 0.02)' }
+          ])
+        },
         data: data.undergraduate
       },
       {
-        name: '专科生',
+        name: '实际录取',
         type: 'line',
-        stack: 'Total',
         smooth: true,
         itemStyle: { color: '#818cf8' },
-        areaStyle: { color: 'rgba(129, 140, 248, 0.2)' },
+        lineStyle: { width: 2.5 },
+        areaStyle: { 
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: 'rgba(129, 140, 248, 0.25)' },
+            { offset: 1, color: 'rgba(129, 140, 248, 0.02)' }
+          ])
+        },
         data: data.juniorCollege
       }
     ]
   })
 }
 
+
 // 统一数据加载与图表启动
 const loadAllData = async () => {
-  await ensureChinaMap()
+  dashboardLoad.start()
+  chartInstances.forEach(chart => chart.clear())
+  try {
+    await ensureChinaMap()
+  } catch (error) {
+    console.error('Failed to load China map:', error)
+    dashboardLoad.fail('地图资源加载失败，请稍后重试。')
+    return
+  }
 
   // 1. 顶部指标
   try {
     const res = await getStatistics()
-    if (res) stats.value = res
-  } catch {}
+    if (!res) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    stats.value = res
+  } catch (error) {
+    console.error('Failed to load dashboard statistics:', error)
+    dashboardLoad.fail('大屏统计接口加载失败，请确认后端服务可用。')
+    return
+  }
 
   // 2. 地图数据
-  let mapData: MapDataItem[] = [
-    { name: '北京', value: 92 }, { name: '天津', value: 56 }, { name: '河北', value: 124 },
-    { name: '山西', value: 82 }, { name: '内蒙古', value: 54 }, { name: '辽宁', value: 114 },
-    { name: '吉林', value: 66 }, { name: '黑龙江', value: 78 }, { name: '上海', value: 64 },
-    { name: '江苏', value: 167 }, { name: '浙江', value: 109 }, { name: '安徽', value: 121 },
-    { name: '福建', value: 89 }, { name: '江西', value: 106 }, { name: '山东', value: 153 },
-    { name: '河南', value: 156 }, { name: '湖北', value: 130 }, { name: '湖南', value: 130 },
-    { name: '广东', value: 160 }, { name: '广西', value: 85 }, { name: '海南', value: 21 },
-    { name: '重庆', value: 69 }, { name: '四川', value: 134 }, { name: '贵州', value: 75 },
-    { name: '云南', value: 82 }, { name: '西藏', value: 7 }, { name: '陕西', value: 97 },
-    { name: '甘肃', value: 49 }, { name: '青海', value: 12 }, { name: '宁夏', value: 20 },
-    { name: '新疆', value: 60 }, { name: '台湾', value: 0 }, { name: '香港', value: 0 }, { name: '澳门', value: 0 }
-  ]
+  let mapData: MapDataItem[]
   try {
     const res = await getMapDistribution()
-    if (res && res.length) mapData = res
-  } catch {}
+    if (!res?.length) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    mapData = res
+  } catch (error) {
+    console.error('Failed to load dashboard map:', error)
+    dashboardLoad.fail('高校地图数据加载失败，请稍后重试。')
+    return
+  }
+  cachedMapData = mapData
   initMapChart(mapData)
 
   // 3. 高校类型
-  let typeData: TypeRatioItem[] = [
-    { value: 980, name: '理工类' }, { value: 760, name: '综合类' },
-    { value: 340, name: '师范类' }, { value: 280, name: '财经类' },
-    { value: 150, name: '医药类' }, { value: 562, name: '其他类' }
-  ]
+  let typeData: TypeRatioItem[]
   try {
     const res = await getTypeRatio()
-    if (res && res.length) typeData = res
-  } catch {}
+    if (!res?.length) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    typeData = res
+  } catch (error) {
+    console.error('Failed to load dashboard type ratio:', error)
+    dashboardLoad.fail('高校类型统计加载失败，请稍后重试。')
+    return
+  }
+  cachedTypeData = typeData
   initTypeChart(typeData)
 
-  // 4. 增长趋势
-  let trendData: GrowthTrendData = {
-    years: ['2015','2016','2017','2018','2019','2020','2021','2022','2023','2024'],
-    values: [2852, 2879, 2914, 2956, 2983, 3005, 3012, 3054, 3069, 3072]
-  }
+  // 4. 增长趋势 (涵盖至 2025 与 2026 最新年份)
+  let trendData: GrowthTrendData
   try {
     const res = await getGrowthTrend()
-    if (res && res.years) trendData = res
-  } catch {}
+    if (!res?.years?.length) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    trendData = res
+  } catch (error) {
+    console.error('Failed to load dashboard growth trend:', error)
+    dashboardLoad.fail('高校增长趋势加载失败，请稍后重试。')
+    return
+  }
+  cachedTrendData = trendData
   initTrendChart(trendData)
 
   // 5. 各省排行 TOP10
-  let rankData: ProvinceTop10Data = {
-    provinces: ['北京', '江苏', '广东', '山东', '河南', '四川', '湖北', '湖南', '浙江', '安徽'],
-    values: [92, 167, 160, 153, 156, 134, 130, 130, 109, 121]
-  }
+  let rankData: ProvinceTop10Data
   try {
     const res = await getProvinceTop10()
-    if (res && res.provinces) rankData = res
-  } catch {}
+    if (!res?.provinces?.length) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    rankData = res
+  } catch (error) {
+    console.error('Failed to load dashboard province ranking:', error)
+    dashboardLoad.fail('省份排行加载失败，请稍后重试。')
+    return
+  }
+  cachedRankData = rankData
   initRankChart(rankData)
 
   // 6. 热门专业 (TOP10)
-  let hotMajorData: HotMajorItem[] = [
-    { value: 40, name: '计算机' }, { value: 38, name: '软件工程' },
-    { value: 32, name: '人工智能' }, { value: 30, name: '临床医学' },
-    { value: 28, name: '电子信息' }, { value: 26, name: '数据科学' },
-    { value: 24, name: '自动化' }, { value: 22, name: '法学' },
-    { value: 20, name: '微电子' }, { value: 18, name: '金融学' }
-  ]
+  let hotMajorData: HotMajorItem[]
   try {
     const res = await getHotMajors()
-    if (res && res.length) hotMajorData = res
-  } catch {}
+    if (!res?.length) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    hotMajorData = res
+  } catch (error) {
+    console.error('Failed to load dashboard hot majors:', error)
+    dashboardLoad.fail('热门专业统计加载失败，请稍后重试。')
+    return
+  }
+  cachedHotMajorData = hotMajorData
   initHotMajorChart(hotMajorData)
 
-  // 7. 招生趋势
-  let enrollData: EnrollTrendData = {
-    years: ['2019', '2020', '2021', '2022', '2023'],
-    undergraduate: [431, 443, 444, 467, 478],
-    juniorCollege: [483, 524, 552, 538, 564]
-  }
+
+  // 7. 招生趋势 (涵盖至 2025 与 2026 最新年份)
+  let enrollData: EnrollTrendData
   try {
     const res = await getEnrollTrend()
-    if (res && res.years) enrollData = res
-  } catch {}
+    if (!res?.years?.length) {
+      dashboardLoad.succeed(true)
+      return
+    }
+    enrollData = res
+  } catch (error) {
+    console.error('Failed to load dashboard enrollment trend:', error)
+    dashboardLoad.fail('招生趋势加载失败，请稍后重试。')
+    return
+  }
+  cachedEnrollData = enrollData
   initEnrollChart(enrollData)
+  dashboardLoad.succeed(false)
 }
 
-// 窗口 Resize 自适应
+const rerenderAllCharts = () => {
+  if (cachedMapData.length) initMapChart(cachedMapData)
+  if (cachedTypeData.length) initTypeChart(cachedTypeData)
+  if (cachedTrendData) initTrendChart(cachedTrendData)
+  if (cachedRankData) initRankChart(cachedRankData)
+  if (cachedHotMajorData.length) initHotMajorChart(cachedHotMajorData)
+  if (cachedEnrollData) initEnrollChart(cachedEnrollData)
+}
+
+// 窗口 Resize 与视口等比例缩放自适应 (防抖优化: 避免拖拽窗口时频繁重绘掉帧)
+let resizeTimer: ReturnType<typeof setTimeout> | null = null
 const handleResize = () => {
-  chartInstances.forEach(chart => chart.resize())
+  if (resizeTimer) clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(() => {
+    chartInstances.forEach(chart => chart.resize())
+  }, 100)
+}
+
+const handleScreenResize = (_scale: number) => {
+  handleResize()
 }
 
 onMounted(() => {
@@ -693,22 +782,52 @@ onMounted(() => {
     loadAllData()
   })
   window.addEventListener('resize', handleResize)
+  unregisterTheme = onThemeChange(() => {
+    nextTick(() => {
+      rerenderAllCharts()
+    })
+  })
 })
 
 onUnmounted(() => {
+  if (resizeTimer) clearTimeout(resizeTimer)
   window.removeEventListener('resize', handleResize)
+  if (unregisterTheme) unregisterTheme()
   chartInstances.forEach(chart => chart.dispose())
   chartInstances.length = 0
 })
 </script>
 
 <style scoped lang="scss">
+.data-status {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
+}
+</style>
+
+
+<style scoped lang="scss">
 .dashboard-page {
-  width: 100%;
-  height: 100%;
+  width: 1920px;
+  height: 980px;
+  padding: 12px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow: hidden;
 }
 
 /* 顶部指标卡片 */
@@ -821,6 +940,25 @@ onUnmounted(() => {
     border-color: rgba(56, 189, 248, 0.4);
     font-weight: 600;
     box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+  }
+}
+
+html.light .switch-btn {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+
+  &:hover {
+    color: #0284c7;
+    background: #e0f2fe;
+    border-color: #7dd3fc;
+  }
+
+  &.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
   }
 }
 </style>

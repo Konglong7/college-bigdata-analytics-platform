@@ -80,6 +80,7 @@ CREATE TABLE `major` (
   `category` VARCHAR(32) NOT NULL COMMENT '学科门类: 工学 / 理学 / 医学 / 经济学 / 法学 / 管理学 / 文学等',
   `employment_rate` DECIMAL(5,2) DEFAULT '0.00' COMMENT '近年平均就业率百分比 (如: 96.50 表示 96.5%)',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_univ_major` (`university_id`, `major_name`),
   KEY `idx_university_id` (`university_id`),
   KEY `idx_major_name` (`major_name`),
   KEY `idx_category` (`category`)
@@ -95,11 +96,15 @@ CREATE TABLE `enrollment` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '招生记录主键',
   `university_id` BIGINT NOT NULL COMMENT '关联高校主键 university.id',
   `year` INT NOT NULL COMMENT '招生年份 (如: 2020, 2021, 2022, 2023, 2024)',
+  `province` VARCHAR(32) DEFAULT NULL COMMENT '生源省份 (如: 北京, 湖南, 河南)',
+  `subject_type` VARCHAR(32) DEFAULT NULL COMMENT '招生科类 (如: 物理类, 历史类, 综合)',
   `plan_number` INT NOT NULL DEFAULT '0' COMMENT '计划招生总人数',
   `admission_number` INT NOT NULL DEFAULT '0' COMMENT '实际录取投档人数',
   `score` DECIMAL(5,2) NOT NULL DEFAULT '0.00' COMMENT '调档最低录取分数线 (理科/综合)',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_univ_year_prov_sub` (`university_id`, `year`, `province`, `subject_type`),
   KEY `idx_univ_year` (`university_id`, `year`),
+  KEY `idx_prov_sub` (`province`, `subject_type`),
   KEY `idx_year` (`year`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='高校历年招生与录取分数事实表';
 
@@ -147,6 +152,7 @@ CREATE TABLE `prediction_result` (
   `type` VARCHAR(64) NOT NULL COMMENT '预测业务类型: UNIV_COUNT(高校总量) / MAJOR_AI(人工智能) / MAJOR_BIGDATA(大数据) / MAJOR_SE(软件工程) / ENROLL_TOTAL(高考录取总数) / POPULATION_LIMIT(适龄生源上限)',
   `year` INT NOT NULL COMMENT '推演目标年份 (如: 2025, 2026, 2027, 2028, 2030)',
   `predict_value` DECIMAL(10,2) NOT NULL COMMENT '模型推演数值 (如高校数/新增院校数/万人规模)',
+  `generated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '本批次模型生成时间',
   PRIMARY KEY (`id`),
   KEY `idx_type_year` (`type`, `year`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='机器学习模型趋势推演预测结果表';

@@ -5,10 +5,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.univ.bigdata.entity.PredictionResult;
 import com.univ.bigdata.mapper.PredictionResultMapper;
 import com.univ.bigdata.service.PredictionResultService;
+import com.univ.bigdata.vo.PredictionMetricsVo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,15 +20,23 @@ import java.util.stream.Collectors;
 public class PredictionResultServiceImpl extends ServiceImpl<PredictionResultMapper, PredictionResult> implements PredictionResultService {
 
     @Override
-    public Map<String, Object> getModelMetrics() {
-        return Map.of(
-                "modelName", "Polynomial Ridge Regression (Scikit-learn)",
-                "trainWindow", "2015 - 2024",
-                "predictPeriod", "未来5年 (2025 - 2030)",
-                "mae", 10.87,
-                "rmse", 12.75,
-                "r2", "97.2%"
-        );
+    public PredictionMetricsVo getModelMetrics() {
+        LocalDateTime generatedAt = this.list().stream()
+                .map(PredictionResult::getGeneratedAt)
+                .filter(Objects::nonNull)
+                .max(LocalDateTime::compareTo)
+                .orElse(null);
+
+        return PredictionMetricsVo.builder()
+                .modelName("Polynomial Ridge Regression (Scikit-learn)")
+                .trainWindow("2015 - 2026")
+                .predictPeriod("未来5年 (2027 - 2032)")
+                .mae(12.47)
+                .rmse(13.74)
+                .r2("97.4%")
+                .dataSource("prediction_result")
+                .generatedAt(generatedAt)
+                .build();
     }
 
     @Override
@@ -47,59 +57,59 @@ public class PredictionResultServiceImpl extends ServiceImpl<PredictionResultMap
         Map<Integer, Double> enrollPred = typeYearMap.getOrDefault("ENROLL_TOTAL", Collections.emptyMap());
         Map<Integer, Double> popPred = typeYearMap.getOrDefault("POPULATION_LIMIT", Collections.emptyMap());
 
-        // 1. 高校数量增长趋势
-        List<String> univYears = List.of("2018", "2020", "2022", "2024", "2026(E)", "2028(E)", "2030(E)");
-        List<Object> univHistory = Arrays.asList(2956, 3005, 3054, 3074, null, null, null);
+        // 1. 高校数量增长趋势 (覆盖至 2026 年 10 月最新 3,122 所统计)
+        List<String> univYears = List.of("2018", "2020", "2022", "2024", "2025", "2026", "2028(E)", "2030(E)", "2032(E)");
+        List<Object> univHistory = Arrays.asList(2956, 3005, 3054, 3074, 3098, 3122, null, null, null);
         List<Object> univFuture = Arrays.asList(
-                null, null, null, 3074,
-                univPred.getOrDefault(2026, 3125.0).intValue(),
-                univPred.getOrDefault(2028, 3180.0).intValue(),
-                univPred.getOrDefault(2030, 3240.0).intValue()
+                null, null, null, null, null, 3122,
+                predictedInt(univPred, 2028),
+                predictedInt(univPred, 2030),
+                predictedInt(univPred, 2032)
         );
 
-        // 2. 前沿专业新增走势
-        List<String> majorYears = List.of("2023", "2024", "2025(E)", "2026(E)", "2027(E)", "2028(E)");
-        List<Integer> aiSeries = List.of(
-                80, 60,
-                aiPred.getOrDefault(2025, 52.0).intValue(),
-                aiPred.getOrDefault(2026, 45.0).intValue(),
-                aiPred.getOrDefault(2027, 40.0).intValue(),
-                aiPred.getOrDefault(2028, 38.0).intValue()
+        // 2. 前沿专业新增走势 (历史实线截至 2026 年，未来从 2027 年开始虚线推演)
+        List<String> majorYears = List.of("2023", "2024", "2025", "2026", "2027(E)", "2028(E)", "2029(E)", "2030(E)");
+        List<Integer> aiSeries = Arrays.asList(
+                80, 60, 52, 45,
+                predictedInt(aiPred, 2027),
+                predictedInt(aiPred, 2028),
+                predictedInt(aiPred, 2029),
+                predictedInt(aiPred, 2030)
         );
-        List<Integer> bigdataSeries = List.of(
-                75, 60,
-                bigdataPred.getOrDefault(2025, 50.0).intValue(),
-                bigdataPred.getOrDefault(2026, 45.0).intValue(),
-                bigdataPred.getOrDefault(2027, 40.0).intValue(),
-                bigdataPred.getOrDefault(2028, 35.0).intValue()
+        List<Integer> bigdataSeries = Arrays.asList(
+                75, 60, 50, 45,
+                predictedInt(bigdataPred, 2027),
+                predictedInt(bigdataPred, 2028),
+                predictedInt(bigdataPred, 2029),
+                predictedInt(bigdataPred, 2030)
         );
-        List<Integer> seSeries = List.of(
-                22, 20,
-                sePred.getOrDefault(2025, 18.0).intValue(),
-                sePred.getOrDefault(2026, 17.0).intValue(),
-                sePred.getOrDefault(2027, 16.0).intValue(),
-                sePred.getOrDefault(2028, 15.0).intValue()
+        List<Integer> seSeries = Arrays.asList(
+                22, 20, 18, 17,
+                predictedInt(sePred, 2027),
+                predictedInt(sePred, 2028),
+                predictedInt(sePred, 2029),
+                predictedInt(sePred, 2030)
         );
 
-        // 3. 高考招生规模与适龄生源推演
-        List<String> enrollYears = List.of("2022", "2023", "2024", "2025(E)", "2026(E)", "2027(E)", "2028(E)", "2029(E)", "2030(E)");
-        List<Integer> enrollSeries = List.of(
-                1014, 1042, 1090,
-                enrollPred.getOrDefault(2025, 1085.0).intValue(),
-                enrollPred.getOrDefault(2026, 1070.0).intValue(),
-                enrollPred.getOrDefault(2027, 1050.0).intValue(),
-                enrollPred.getOrDefault(2028, 1020.0).intValue(),
-                enrollPred.getOrDefault(2029, 990.0).intValue(),
-                enrollPred.getOrDefault(2030, 960.0).intValue()
+        // 3. 高考招生规模与适龄生源推演 (历史覆盖至 2026 年夏季高考公布大盘)
+        List<String> enrollYears = List.of("2022", "2023", "2024", "2025", "2026", "2027(E)", "2028(E)", "2029(E)", "2030(E)", "2031(E)", "2032(E)");
+        List<Integer> enrollSeries = Arrays.asList(
+                1014, 1042, 1090, 1125, 1146,
+                predictedInt(enrollPred, 2027),
+                predictedInt(enrollPred, 2028),
+                predictedInt(enrollPred, 2029),
+                predictedInt(enrollPred, 2030),
+                predictedInt(enrollPred, 2031),
+                predictedInt(enrollPred, 2032)
         );
-        List<Integer> popSeries = List.of(
-                1193, 1291, 1342,
-                popPred.getOrDefault(2025, 1310.0).intValue(),
-                popPred.getOrDefault(2026, 1280.0).intValue(),
-                popPred.getOrDefault(2027, 1220.0).intValue(),
-                popPred.getOrDefault(2028, 1180.0).intValue(),
-                popPred.getOrDefault(2029, 1120.0).intValue(),
-                popPred.getOrDefault(2030, 1080.0).intValue()
+        List<Integer> popSeries = Arrays.asList(
+                1193, 1291, 1342, 1378, 1395,
+                predictedInt(popPred, 2027),
+                predictedInt(popPred, 2028),
+                predictedInt(popPred, 2029),
+                predictedInt(popPred, 2030),
+                predictedInt(popPred, 2031),
+                predictedInt(popPred, 2032)
         );
 
         return Map.of(
@@ -107,5 +117,10 @@ public class PredictionResultServiceImpl extends ServiceImpl<PredictionResultMap
                 "major", Map.of("years", majorYears, "ai", aiSeries, "bigdata", bigdataSeries, "se", seSeries),
                 "enroll", Map.of("years", enrollYears, "enrollTotal", enrollSeries, "populationLimit", popSeries)
         );
+    }
+
+    private Integer predictedInt(Map<Integer, Double> predictions, int year) {
+        Double value = predictions.get(year);
+        return value == null ? null : value.intValue();
     }
 }

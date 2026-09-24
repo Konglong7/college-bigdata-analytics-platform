@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -25,4 +26,6 @@ public class PredictionResult {
     private Integer year;
 
     private BigDecimal predictValue;
+
+    private LocalDateTime generatedAt;
 }

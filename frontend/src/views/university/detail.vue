@@ -187,6 +187,7 @@ import { useRoute } from 'vue-router'
 import * as echarts from 'echarts'
 import DvBorderBox from '@/components/DvBorderBox/index.vue'
 import { getUniversityDetail, UnivDetail } from '@/api/university'
+import { getChartTheme, onThemeChange } from '@/utils/theme'
 
 const route = useRoute()
 
@@ -209,17 +210,6 @@ const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
 }
 
 const colorPalette = ['#00e5ff', '#1089ff', '#faad14', '#00ffaa', '#ff4d4f', '#945fb9']
-
-const baseChartStyle = {
-  textStyle: { color: '#8ba2d4' },
-  grid: { top: 35, right: 20, bottom: 25, left: 45 },
-  tooltip: {
-    backgroundColor: 'rgba(5, 18, 43, 0.95)',
-    borderColor: '#00e5ff',
-    borderWidth: 1,
-    textStyle: { color: '#fff' }
-  }
-}
 
 const detail = ref<UnivDetail>({
   id: 1,
@@ -261,16 +251,16 @@ const detail = ref<UnivDetail>({
     { name: '毕业综合就业', max: 100 }
   ],
   radarValues: [99, 99, 90, 96, 98, 96],
-  rankYears: ['2020', '2021', '2022', '2023', '2024'],
-  rankValues: [4, 3, 3, 2, 2],
+  rankYears: ['2020', '2021', '2022', '2023', '2024', '2025', '2026'],
+  rankValues: [4, 3, 3, 2, 2, 2, 2],
   rankCompare: [
     { name: '软科全国大学排名', value: 2 },
     { name: 'QS世界/亚洲排名', value: 2 },
     { name: '校友会中国大学排名', value: 1 }
   ],
-  scoreYears: ['2020', '2021', '2022', '2023', '2024'],
+  scoreYears: ['2020', '2021', '2022', '2023', '2024', '2025', '2026'],
   scoreSeries: [
-    { name: '北京 (官方投档线)', data: [680, 685, 688, 703, 707] }
+    { name: '北京 (官方投档线)', data: [680, 685, 688, 703, 707, 709, 712] }
   ],
   majorPie: [
     { value: 985, name: '计算机科学与技术' },
@@ -286,9 +276,12 @@ const detail = ref<UnivDetail>({
 const initRadarChart = () => {
   const chart = registerChart(radarChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
   chart.setOption({
-    tooltip: {},
+    tooltip: ct.tooltip,
     radar: {
+      center: ['50%', '54%'],
+      radius: '58%',
       indicator: detail.value.radarIndicators || [
         { name: '师资力量', max: 100 },
         { name: '科研平台', max: 100 },
@@ -297,10 +290,10 @@ const initRadarChart = () => {
         { name: '生源质量', max: 100 },
         { name: '就业表现', max: 100 }
       ],
-      splitArea: { areaStyle: { color: ['rgba(0, 229, 255, 0.08)', 'rgba(0, 229, 255, 0.02)'] } },
-      axisLine: { lineStyle: { color: 'rgba(255,255,255,0.15)' } },
-      splitLine: { lineStyle: { color: 'rgba(0, 229, 255, 0.25)' } },
-      axisName: { color: '#8ba2d4', fontSize: 11 }
+      splitArea: { areaStyle: { color: ct.radarSplitArea } },
+      axisLine: { lineStyle: { color: ct.radarAxisLine } },
+      splitLine: { lineStyle: { color: ct.radarSplitLine } },
+      axisName: { color: ct.textColor, fontSize: 10.5 }
     },
     series: [{
       type: 'radar',
@@ -311,13 +304,14 @@ const initRadarChart = () => {
         lineStyle: { color: '#00e5ff', width: 2 }
       }]
     }]
-  })
+  }, true)
 }
 
 // 2. 权威大学榜单对比 (真实软科、QS、校友会)
 const initRankChart = () => {
   const chart = registerChart(rankChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
 
   const compData = detail.value.rankCompare || [
     { name: '软科全国排名', value: detail.value.ruankeRank || 2 },
@@ -326,17 +320,18 @@ const initRankChart = () => {
   ]
 
   chart.setOption({
-    ...baseChartStyle,
-    grid: { top: 25, right: 35, bottom: 25, left: 120 },
+    tooltip: ct.tooltip,
+    textStyle: { color: ct.textColor },
+    grid: { top: 25, right: 65, bottom: 25, left: 125 },
     xAxis: {
       type: 'value',
-      axisLabel: { color: '#8ba2d4', fontSize: 11 },
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } }
+      axisLabel: { color: ct.textColor, fontSize: 11 },
+      splitLine: { lineStyle: { color: ct.splitLineColor } }
     },
     yAxis: {
       type: 'category',
       data: compData.map(c => c.name),
-      axisLabel: { color: '#8ba2d4', fontSize: 11 },
+      axisLabel: { color: ct.textColor, fontSize: 11 },
       inverse: true
     },
     series: [{
@@ -353,18 +348,19 @@ const initRankChart = () => {
       label: {
         show: true,
         position: 'right',
-        color: '#fff',
+        color: ct.titleColor,
         formatter: '第 {c} 名',
         fontSize: 11
       }
     }]
-  })
+  }, true)
 }
 
 // 3. 官方真实录取分数线趋势
 const initScoreChart = () => {
   const chart = registerChart(scoreChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
   
   // 智能计算 Y 轴区间
   let minScore = 750
@@ -382,20 +378,21 @@ const initScoreChart = () => {
   const yMax = Math.min(750, Math.ceil((maxScore + 15) / 10) * 10)
 
   chart.setOption({
-    ...baseChartStyle,
+    tooltip: { ...ct.tooltip, trigger: 'axis' },
+    textStyle: { color: ct.textColor },
     grid: { top: 40, right: 30, bottom: 30, left: 50 },
-    legend: { textStyle: { color: '#8ba2d4' }, top: 5 },
+    legend: { textStyle: { color: ct.textColor }, top: 5 },
     xAxis: {
       type: 'category',
-      data: detail.value.scoreYears || ['2020', '2021', '2022', '2023', '2024'],
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      data: detail.value.scoreYears || ['2020', '2021', '2022', '2023', '2024', '2025', '2026'],
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
       min: yMin,
       max: yMax,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11, formatter: '{value}分' }
+      splitLine: { lineStyle: { color: ct.splitLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11, formatter: '{value}分' }
     },
     series: seriesList.map((item, idx) => ({
       name: item.name,
@@ -407,20 +404,22 @@ const initScoreChart = () => {
       label: {
         show: true,
         position: 'top',
-        color: '#00e5ff',
+        color: ct.isDark ? '#00e5ff' : '#0284c7',
         formatter: '{c}分',
         fontSize: 11
       }
     }))
-  })
+  }, true)
 }
 
 // 4. 优势专业招生与就业率
 const initMajorPie = () => {
   const chart = registerChart(majorPieRef.value)
   if (!chart) return
+  const ct = getChartTheme()
   chart.setOption({
     tooltip: {
+      ...ct.tooltip,
       trigger: 'item',
       formatter: '{b}: 就业率指数 {c}‰'
     },
@@ -430,17 +429,19 @@ const initMajorPie = () => {
       radius: ['38%', '68%'],
       center: ['50%', '50%'],
       data: detail.value.majorPie,
-      label: { color: '#fff', fontSize: 11, formatter: '{b}' }
+      label: { color: ct.titleColor, fontSize: 11, formatter: '{b}' }
     }]
-  })
+  }, true)
 }
 
 // 5. 研究生与本科生结构统计
 const initGenderBar = () => {
   const chart = registerChart(genderBarRef.value)
   if (!chart) return
+  const ct = getChartTheme()
   chart.setOption({
-    ...baseChartStyle,
+    tooltip: ct.tooltip,
+    textStyle: { color: ct.textColor },
     grid: { top: 20, right: 20, bottom: 20, left: 20 },
     xAxis: { type: 'value', show: false },
     yAxis: { type: 'category', data: ['培养结构'], show: false },
@@ -462,7 +463,7 @@ const initGenderBar = () => {
         data: [detail.value.femaleRatio]
       }
     ]
-  })
+  }, true)
 }
 
 const renderAllCharts = () => {
@@ -492,9 +493,14 @@ const handleResize = () => {
   chartInstances.forEach(c => c.resize())
 }
 
+let unsubTheme: (() => void) | null = null
+
 onMounted(() => {
   loadDetail()
   window.addEventListener('resize', handleResize)
+  unsubTheme = onThemeChange(() => {
+    renderAllCharts()
+  })
 })
 
 watch(() => route.params.id, () => {
@@ -503,6 +509,9 @@ watch(() => route.params.id, () => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (unsubTheme) {
+    unsubTheme()
+  }
   chartInstances.forEach(c => c.dispose())
   chartInstances.length = 0
 })
@@ -571,7 +580,7 @@ onUnmounted(() => {
   color: var(--text-sub);
   font-size: 12px;
   strong {
-    color: #fff;
+    color: var(--text-main);
     font-weight: 500;
   }
 }
@@ -692,8 +701,8 @@ onUnmounted(() => {
   align-items: center;
   padding: 8px 18px;
   min-height: 48px;
-  background: rgba(4, 21, 54, 0.7);
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -715,7 +724,7 @@ onUnmounted(() => {
 }
 
 .f-value {
-  color: #fff;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -765,8 +774,8 @@ onUnmounted(() => {
   align-items: center;
   padding: 4px 10px;
   font-size: 11.5px;
-  color: #8ba2d4;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  color: var(--text-sub);
+  border-bottom: 1px dashed var(--border-color-subtle);
 }
 
 .chart-header-link {
@@ -786,7 +795,7 @@ onUnmounted(() => {
   height: 100%;
   font-size: 12px;
   line-height: 1.6;
-  color: #c0ccda;
+  color: var(--text-sub);
   p {
     margin: 0;
     text-indent: 2em;
@@ -801,7 +810,7 @@ onUnmounted(() => {
   align-items: center;
   margin-top: 6px;
   padding-top: 4px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  border-top: 1px dashed var(--border-color-subtle);
   font-size: 11px;
 }
 

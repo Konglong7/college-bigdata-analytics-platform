@@ -1,5 +1,12 @@
 <template>
   <div class="analysis-layout">
+    <div v-if="enrollmentLoad.state.value === 'error'" class="data-status error-status">
+      {{ enrollmentLoad.errorMessage.value }}
+      <button class="dv-btn" @click="loadData">重试</button>
+    </div>
+    <div v-else-if="enrollmentLoad.state.value === 'empty'" class="data-status">
+      当前没有可用的招生分析数据。
+    </div>
     <!-- 第一行：报名与录取对比 + 批次漏斗 -->
     <div class="analysis-row">
       <DvBorderBox title="历年高考报名人数与录取人数对比 (万人)" style="flex: 1; min-height: 270px;">
@@ -25,12 +32,15 @@ import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import DvBorderBox from '@/components/DvBorderBox/index.vue'
 import { getCompareStats, getBatchFunnel, getMatrixPlan, CompareStatsData, FunnelItem, MatrixPlanData } from '@/api/enrollment'
+import { getChartTheme, onThemeChange } from '@/utils/theme'
+import { createLoadState } from '@/utils/loadState'
 
 const compareChartRef = ref<HTMLDivElement | null>(null)
 const funnelChartRef = ref<HTMLDivElement | null>(null)
 const matrixChartRef = ref<HTMLDivElement | null>(null)
 
 const chartInstances: echarts.ECharts[] = []
+const enrollmentLoad = createLoadState()
 
 const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
   if (!dom) return null
@@ -41,39 +51,34 @@ const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
   return chart
 }
 
-const baseChartStyle = {
-  textStyle: { color: '#8ba2d4' },
-  grid: { top: 35, right: 20, bottom: 25, left: 45 },
-  tooltip: {
-    backgroundColor: 'rgba(5, 18, 43, 0.9)',
-    borderColor: '#00e5ff',
-    borderWidth: 1,
-    textStyle: { color: '#fff' }
-  }
-}
+// 缓存数据用于主题切换时重绘
+let cachedCompareData: CompareStatsData | null = null
+let cachedFunnelData: FunnelItem[] | null = null
+let cachedMatrixData: MatrixPlanData | null = null
 
 // 1. 历年对比
 const initCompareChart = (data: CompareStatsData) => {
   const chart = registerChart(compareChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
 
   chart.setOption({
-    ...baseChartStyle,
-    tooltip: { trigger: 'axis' },
-    legend: { textStyle: { color: '#8ba2d4' }, top: 5 },
+    tooltip: { ...ct.tooltip, trigger: 'axis' },
+    textStyle: { color: ct.textColor },
+    legend: { textStyle: { color: ct.textColor }, top: 5 },
     grid: { top: 35, right: 48, bottom: 25, left: 45 },
     xAxis: {
       type: 'category',
       data: data.years,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 }
     },
     yAxis: [
       {
         type: 'value',
         name: '万人',
-        splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-        axisLabel: { color: '#8ba2d4', fontSize: 11 }
+        splitLine: { lineStyle: { color: ct.splitLineColor } },
+        axisLabel: { color: ct.textColor, fontSize: 11 }
       },
       {
         type: 'value',
@@ -117,14 +122,13 @@ const initCompareChart = (data: CompareStatsData) => {
 const initFunnelChart = (data: FunnelItem[]) => {
   const chart = registerChart(funnelChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
 
   const colors = ['#1089ff', '#00e5ff', '#00ffaa', '#faad14', '#ff7875']
   chart.setOption({
     tooltip: {
+      ...ct.tooltip,
       trigger: 'item',
-      backgroundColor: 'rgba(5, 18, 43, 0.9)',
-      borderColor: '#00e5ff',
-      textStyle: { color: '#fff' },
       formatter: '{b}: {c}%'
     },
     color: colors,
@@ -142,131 +146,149 @@ const initFunnelChart = (data: FunnelItem[]) => {
       sort: 'descending',
       gap: 3,
       label: { show: true, position: 'inside', color: '#fff', fontSize: 11, formatter: '{b}' },
-      itemStyle: { borderColor: '#05122b', borderWidth: 1.5 },
+      itemStyle: { borderColor: ct.isDark ? '#05122b' : '#ffffff', borderWidth: 1.5 },
       data
     }]
-  })
+  }, true)
 }
 
-// 3. 投放矩阵
+// 3. 投放矩阵 (覆盖全国 31 省份全量投放)
 const initMatrixChart = (data: MatrixPlanData) => {
   const chart = registerChart(matrixChartRef.value)
   if (!chart) return
+  const ct = getChartTheme()
+
+  // 坐标映射：X轴为全国 31 个省市自治区，Y轴为代表性顶尖高校
+  // 后端返回的 points 格式为 [uIdx, pIdx, plan]，因此映射为 [pIdx, uIdx, plan]
+  const scatterPoints = data.points.map(p => [p[1], p[0], p[2]])
 
   chart.setOption({
-    ...baseChartStyle,
     tooltip: {
+      ...ct.tooltip,
       position: 'top',
-      backgroundColor: 'rgba(5, 18, 43, 0.9)',
-      borderColor: '#00e5ff',
-      textStyle: { color: '#fff' },
       formatter: (params: any) => {
         const p = params.value
-        return `${data.universities[p[0]]} -> ${data.provinces[p[1]]}<br/>招生计划: <strong style="color:#00ffaa;">${p[2]}</strong> 人`
+        const provName = data.provinces[p[0]] || ''
+        const univName = data.universities[p[1]] || ''
+        const plan = p[2]
+        return `<div style="font-weight:bold;margin-bottom:3px;color:${ct.isDark ? '#00e5ff' : '#0284c7'}">${univName}</div>
+                <div style="font-size:12px;">生源省份: <strong style="color:${ct.textColor}">${provName}</strong></div>
+                <div style="font-size:12px;margin-top:2px;">招生计划投放: <strong style="color:#10b981;font-size:13px;">${plan}</strong> 人</div>`
       }
     },
+    grid: { top: 25, right: 25, bottom: 42, left: 95 },
+    textStyle: { color: ct.textColor },
     xAxis: {
       type: 'category',
-      data: data.universities,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      data: data.provinces,
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: {
+        color: ct.textColor,
+        fontSize: 10.5,
+        interval: 0,
+        rotate: 32
+      },
+      splitLine: { show: true, lineStyle: { color: ct.splitLineColor } }
     },
     yAxis: {
       type: 'category',
-      data: data.provinces,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      data: data.universities,
+      axisLine: { lineStyle: { color: ct.axisLineColor } },
+      axisLabel: { color: ct.textColor, fontSize: 11 },
+      splitLine: { show: true, lineStyle: { color: ct.splitLineColor } }
     },
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: 0,
+        zoomOnMouseWheel: true
+      },
+      {
+        type: 'slider',
+        xAxisIndex: 0,
+        height: 12,
+        bottom: 2,
+        borderColor: 'transparent',
+        backgroundColor: ct.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)',
+        fillerColor: ct.isDark ? 'rgba(0, 229, 255, 0.2)' : 'rgba(2, 132, 199, 0.2)',
+        handleStyle: { color: ct.isDark ? '#00e5ff' : '#0284c7' },
+        textStyle: { color: ct.textColor, fontSize: 10 }
+      }
+    ],
     series: [{
       type: 'scatter',
-      symbolSize: (val: any) => Math.max(val[2] / 7, 12),
-      data: data.points,
+      symbolSize: (val: any) => {
+        const plan = val[2]
+        return Math.min(26, Math.max(7, Math.round(Math.sqrt(plan) * 1.8)))
+      },
+      data: scatterPoints,
       itemStyle: {
         color: new echarts.graphic.RadialGradient(0.4, 0.3, 1, [
-          { offset: 0, color: '#00e5ff' },
-          { offset: 1, color: '#1089ff' }
+          { offset: 0, color: ct.isDark ? '#00e5ff' : '#38bdf8' },
+          { offset: 1, color: ct.isDark ? '#1089ff' : '#0284c7' }
         ]),
-        shadowBlur: 8,
-        shadowColor: 'rgba(0, 229, 255, 0.5)'
+        shadowBlur: ct.isDark ? 8 : 4,
+        shadowColor: ct.isDark ? 'rgba(0, 229, 255, 0.4)' : 'rgba(2, 132, 199, 0.25)'
       }
     }]
-  })
+  }, true)
+}
+
+const renderAllCharts = () => {
+  if (cachedCompareData) initCompareChart(cachedCompareData)
+  if (cachedFunnelData) initFunnelChart(cachedFunnelData)
+  if (cachedMatrixData) initMatrixChart(cachedMatrixData)
 }
 
 const loadData = async () => {
-  // 1. 历年对比
-  let compareData: CompareStatsData = {
-    years: ['2019', '2020', '2021', '2022', '2023', '2024'],
-    applicants: [1031, 1071, 1078, 1193, 1291, 1342],
-    admissions: [914, 967, 1001, 1014, 1042, 1090],
-    rates: [88.6, 90.3, 92.8, 85.0, 80.7, 81.2]
-  }
+  enrollmentLoad.start()
   try {
-    const res = await getCompareStats()
-    if (res && res.years) compareData = res
-  } catch {}
-  initCompareChart(compareData)
-
-  // 2. 批次漏斗
-  let funnelData: FunnelItem[] = [
-    { value: 100, name: '报名总人数 (100%)' },
-    { value: 80, name: '本专科总录取 (80%)' },
-    { value: 45, name: '普通本科录取 (45%)' },
-    { value: 15, name: '重点一本录取 (15%)' },
-    { value: 5, name: '985/211录取 (5%)' }
-  ]
-  try {
-    const res = await getBatchFunnel()
-    if (res && res.length) funnelData = res
-  } catch {}
-  initFunnelChart(funnelData)
-
-  // 3. 投放矩阵
-  let matrixData: MatrixPlanData = {
-    universities: ['北京大学', '清华大学', '复旦大学', '浙江大学', '南京大学'],
-    provinces: ['北京', '广东', '江苏', '山东', '河南'],
-    points: [
-      [0, 0, 300], [0, 1, 120], [0, 2, 110], [0, 3, 150], [0, 4, 200],
-      [1, 0, 320], [1, 1, 110], [1, 2, 100], [1, 3, 140], [1, 4, 190],
-      [2, 0, 50], [2, 1, 150], [2, 2, 300], [2, 3, 100], [2, 4, 120],
-      [3, 0, 60], [3, 1, 140], [3, 2, 180], [3, 3, 110], [3, 4, 130],
-      [4, 0, 55], [4, 1, 120], [4, 2, 280], [4, 3, 90], [4, 4, 110]
-    ]
-  }
-  try {
-    const res = await getMatrixPlan()
-    if (res && res.universities) {
-      matrixData = res
-      // 保证 5 所高校在矩阵图中均有完整的招生投放气泡
-      const existingUnis = new Set(matrixData.points.map(p => p[0]))
-      if (!existingUnis.has(3)) {
-        matrixData.points.push(
-          [3, 0, 60], [3, 1, 140], [3, 2, 180], [3, 3, 110], [3, 4, 130]
-        )
-      }
-      if (!existingUnis.has(4)) {
-        matrixData.points.push(
-          [4, 0, 55], [4, 1, 120], [4, 2, 280], [4, 3, 90], [4, 4, 110]
-        )
-      }
+    const [compareData, funnelData, matrixData] = await Promise.all([
+      getCompareStats(),
+      getBatchFunnel(),
+      getMatrixPlan()
+    ])
+    if (!compareData?.years?.length || !funnelData?.length || !matrixData?.universities?.length || !matrixData.provinces?.length) {
+      enrollmentLoad.succeed(true)
+      return
     }
-  } catch {}
-  initMatrixChart(matrixData)
+    cachedCompareData = compareData
+    cachedFunnelData = funnelData
+    cachedMatrixData = matrixData
+    initCompareChart(compareData)
+    initFunnelChart(funnelData)
+    initMatrixChart(matrixData)
+    enrollmentLoad.succeed(false)
+  } catch (error) {
+    console.error('Failed to load enrollment analysis data:', error)
+    cachedCompareData = null
+    cachedFunnelData = null
+    cachedMatrixData = null
+    enrollmentLoad.fail('招生分析数据加载失败，请确认后端服务可用。')
+  }
 }
 
 const handleResize = () => {
   chartInstances.forEach(c => c.resize())
 }
 
+let unsubTheme: (() => void) | null = null
+
 onMounted(() => {
   nextTick(() => {
     loadData()
   })
   window.addEventListener('resize', handleResize)
+  unsubTheme = onThemeChange(() => {
+    renderAllCharts()
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  if (unsubTheme) {
+    unsubTheme()
+  }
   chartInstances.forEach(c => c.dispose())
   chartInstances.length = 0
 })
@@ -279,6 +301,22 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.data-status {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
 }
 .analysis-row {
   display: flex;

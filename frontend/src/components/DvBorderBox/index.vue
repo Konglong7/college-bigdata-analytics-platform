@@ -38,13 +38,17 @@ defineProps<{
   pointer-events: none;
 }
 
+:global(html.light) .card-glow-line {
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.25), transparent);
+}
+
 .dv-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-color-subtle);
   flex-shrink: 0;
   user-select: none;
 
@@ -70,7 +74,7 @@ defineProps<{
   .title-text {
     font-size: 13.5px;
     font-weight: 600;
-    color: #e2e8f0;
+    color: var(--text-main);
     letter-spacing: 0.3px;
   }
 

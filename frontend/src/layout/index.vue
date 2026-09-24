@@ -1,14 +1,17 @@
 <template>
   <div class="app-wrapper">
     <Header />
-    <main class="app-main">
+    <main :class="['app-main', { 'is-dashboard': route.path === '/dashboard' }]">
       <router-view />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useRoute } from 'vue-router'
 import Header from './Header.vue'
+
+const route = useRoute()
 </script>
 
 <style scoped lang="scss">
@@ -27,5 +30,10 @@ import Header from './Header.vue'
   position: relative;
   overflow-y: auto;
   overflow-x: hidden;
+
+  &.is-dashboard {
+    padding: 0;
+    overflow: hidden;
+  }
 }
 </style>

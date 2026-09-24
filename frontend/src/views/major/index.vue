@@ -1,19 +1,45 @@
 <template>
   <div class="analysis-layout">
-    <!-- 第一行：重点省份学科热力分布 + 就业率TOP10 -->
+    <div v-if="majorLoad.state.value === 'error'" class="data-status error-status">
+      {{ majorLoad.errorMessage.value }}
+      <button class="dv-btn" @click="loadData">重试</button>
+    </div>
+    <div v-else-if="majorLoad.state.value === 'empty'" class="data-status">
+      当前没有可用的专业分析数据。
+    </div>
+    <!-- 第一行：热门专业词云墙 (默认) / 学科门类分布切换 + 就业率TOP10 -->
     <div class="analysis-row">
-      <DvBorderBox title="重点省份与主要学科门类开设热力分布" style="flex: 6; min-height: 270px;">
-        <div ref="heatmapChartRef" class="chart-container"></div>
+      <DvBorderBox
+        :title="viewMode === 'wordcloud' ? '全国高校热门开设专业与前沿学科词云墙 (真实开设高校数加权)' : '教育部 12 大学科门类开设数量与结构分布 (真实数仓事实聚合)'"
+        style="flex: 6; min-height: 280px;"
+      >
+        <template #right>
+          <div class="mode-switch-group">
+            <button
+              :class="['mode-btn', { active: viewMode === 'wordcloud' }]"
+              @click="switchViewMode('wordcloud')"
+            >
+              🔥 热门专业词云
+            </button>
+            <button
+              :class="['mode-btn', { active: viewMode === 'category' }]"
+              @click="switchViewMode('category')"
+            >
+              📊 学科门类占比
+            </button>
+          </div>
+        </template>
+        <div ref="leftChartRef" class="chart-container"></div>
       </DvBorderBox>
 
-      <DvBorderBox title="就业率 TOP10 专业" style="flex: 4; min-height: 270px;">
+      <DvBorderBox title="全国高校毕业生平均就业率 TOP10 专业" style="flex: 4; min-height: 280px;">
         <div ref="jobChartRef" class="chart-container"></div>
       </DvBorderBox>
     </div>
 
-    <!-- 第二行：新兴专业趋势 -->
+    <!-- 第二行：新兴前沿专业新增开设走势 -->
     <div class="analysis-row">
-      <DvBorderBox title="新兴前沿专业 (人工智能 / 大数据等) 新增开设院校趋势" style="flex: 1; min-height: 270px;">
+      <DvBorderBox title="国家战略新兴前沿专业 (人工智能 / 大数据 / 软件工程) 历年增量布点走势" style="flex: 1; min-height: 280px;">
         <div ref="trendChartRef" class="chart-container"></div>
       </DvBorderBox>
     </div>
@@ -23,156 +49,258 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
+import 'echarts-wordcloud'
 import DvBorderBox from '@/components/DvBorderBox/index.vue'
-import { getEmploymentTop10, getNewEmergingTrend } from '@/api/major'
+import {
+  getEmploymentTop10,
+  getNewEmergingTrend,
+  getCategoryDistribution,
+  getHotWordCloud,
+  CategoryDistributionItem,
+  HotWordCloudItem
+} from '@/api/major'
+import { getChartTheme, onThemeChange } from '@/utils/theme'
+import { createLoadState } from '@/utils/loadState'
 
-const heatmapChartRef = ref<HTMLDivElement | null>(null)
+const viewMode = ref<'wordcloud' | 'category'>('wordcloud')
+const majorLoad = createLoadState()
+
+const leftChartRef = ref<HTMLDivElement | null>(null)
 const jobChartRef = ref<HTMLDivElement | null>(null)
 const trendChartRef = ref<HTMLDivElement | null>(null)
 
-const chartInstances: echarts.ECharts[] = []
+let leftChart: echarts.ECharts | null = null
+let jobChart: echarts.ECharts | null = null
+let trendChart: echarts.ECharts | null = null
 
-const registerChart = (dom: HTMLDivElement | null): echarts.ECharts | null => {
-  if (!dom) return null
-  const chart = echarts.getInstanceByDom(dom) || echarts.init(dom)
-  if (!chartInstances.includes(chart)) {
-    chartInstances.push(chart)
-  }
-  return chart
-}
+// 缓存数据用于主题切换重绘
+let cachedWordCloudData: HotWordCloudItem[] = []
+let cachedCategoryData: CategoryDistributionItem[] = []
+let cachedJobMajors: string[] = []
+let cachedJobRates: number[] = []
+let cachedTrendYears: string[] = []
+let cachedTrendSeries: Array<{ name: string; data: number[] }> = []
 
-const baseChartStyle = {
-  textStyle: { color: '#8ba2d4' },
-  grid: { top: 35, right: 20, bottom: 25, left: 45 },
-  tooltip: {
-    backgroundColor: 'rgba(5, 18, 43, 0.9)',
-    borderColor: '#00e5ff',
-    borderWidth: 1,
-    textStyle: { color: '#fff' }
-  }
-}
+let unregisterTheme: (() => void) | null = null
 
-// 1. 重点省份与主要学科门类开设热力分布
-const provinces = ['北京', '江苏', '广东', '山东', '河南', '湖北', '浙江', '四川', '陕西', '辽宁']
-const disciplines = ['工学', '理学', '管理学', '医学', '文学', '经济学', '艺术学']
-
-const initHeatmapChart = (data: Array<[number, number, number]>) => {
-  const chart = registerChart(heatmapChartRef.value)
-  if (!chart) return
-
-  chart.setOption({
-    tooltip: {
-      position: 'top',
-      backgroundColor: 'rgba(5, 18, 43, 0.9)',
-      borderColor: '#00e5ff',
-      textStyle: { color: '#fff' },
-      formatter: (params: any) => {
-        const p = params.value
-        return `${provinces[p[0]]} · ${disciplines[p[1]]}<br/>开设热度指数: <strong style="color:#00ffaa;">${p[2]}</strong>`
-      }
-    },
-    grid: { top: 20, right: 70, bottom: 25, left: 55 },
-    xAxis: {
-      type: 'category',
-      data: provinces,
-      splitArea: { show: true },
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
-    },
-    yAxis: {
-      type: 'category',
-      data: disciplines,
-      splitArea: { show: true },
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
-    },
-    visualMap: {
-      min: 65,
-      max: 100,
-      calculable: true,
-      orient: 'vertical',
-      right: 12,
-      top: 'middle',
-      itemWidth: 10,
-      itemHeight: 100,
-      inRange: { color: ['#0b234d', '#1089ff', '#00e5ff'] },
-      textStyle: { color: '#8ba2d4', fontSize: 10 }
-    },
-    series: [{
-      name: '学科开设热度',
-      type: 'heatmap',
-      data,
-      label: { show: true, color: '#fff', fontSize: 10 },
-      itemStyle: {
-        borderColor: '#05122b',
-        borderWidth: 1
-      },
-      emphasis: {
-        itemStyle: {
-          shadowBlur: 10,
-          shadowColor: 'rgba(0, 229, 255, 0.5)'
-        }
-      }
-    }]
+// 模式切换
+const switchViewMode = (mode: 'wordcloud' | 'category') => {
+  viewMode.value = mode
+  nextTick(() => {
+    if (mode === 'wordcloud' && cachedWordCloudData.length) {
+      renderWordCloudChart(cachedWordCloudData)
+    } else if (mode === 'category' && cachedCategoryData.length) {
+      renderCategoryChart(cachedCategoryData)
+    }
   })
 }
 
-// 2. 就业率 TOP10 横向柱状图
-const initJobChart = (majors: string[], rates: number[]) => {
-  const chart = registerChart(jobChartRef.value)
-  if (!chart) return
+// 1. 热门专业词云墙 (WordCloud)
+const renderWordCloudChart = (data: HotWordCloudItem[]) => {
+  if (!leftChartRef.value) return
+  if (!leftChart) {
+    leftChart = echarts.init(leftChartRef.value)
+  }
+  const theme = getChartTheme()
 
-  chart.setOption({
-    ...baseChartStyle,
-    grid: { top: 20, right: 40, bottom: 20, left: 75 },
+  // 针对不同学科门类定制现代学术科技配色
+  const categoryColorMap: Record<string, string[]> = {
+    '工学': ['#38bdf8', '#0284c7', '#0ea5e9', '#3b82f6', '#2563eb'],
+    '理学': ['#818cf8', '#6366f1', '#4f46e5', '#a855f7'],
+    '医学': ['#34d399', '#10b981', '#059669', '#14b8a6'],
+    '经济学': ['#fbbf24', '#f59e0b', '#d97706'],
+    '管理学': ['#f43f5e', '#e11d48', '#be123c'],
+    '文学': ['#c084fc', '#a855f7', '#9333ea'],
+    '法学': ['#22d3ee', '#06b6d4', '#0891b2'],
+    '教育学': ['#fb7185', '#f43f5e', '#e11d48']
+  }
+  const defaultColors = ['#38bdf8', '#818cf8', '#34d399', '#fbbf24', '#f43f5e', '#c084fc', '#22d3ee']
+
+  leftChart.setOption({
+    tooltip: {
+      show: true,
+      formatter: (params: any) => {
+        const item = params.data
+        return `<div style="font-weight:bold;font-size:13px;color:#38bdf8;margin-bottom:4px;">${item.name}</div>
+                <div style="font-size:12px;margin-bottom:2px;">所属门类: <strong style="color:#fbbf24;">${item.category || '综合学科'}</strong></div>
+                <div style="font-size:12px;">全国开办高校: <strong style="color:#34d399;font-size:13px;">${item.value}</strong> 所</div>`
+      },
+      ...theme.tooltip
+    },
+    series: [
+      {
+        type: 'wordCloud',
+        shape: 'circle',
+        keepAspect: false,
+        left: 'center',
+        top: 'center',
+        width: '94%',
+        height: '90%',
+        right: null,
+        bottom: null,
+        sizeRange: [13, 38],
+        rotationRange: [-45, 45],
+        rotationStep: 45,
+        gridSize: 8,
+        drawOutOfBound: false,
+        layoutAnimation: true,
+        textStyle: {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          fontWeight: 'bold',
+          color: (itemParams: any) => {
+            const cat = itemParams.data?.category || ''
+            const colors = categoryColorMap[cat] || defaultColors
+            return colors[Math.floor(Math.random() * colors.length)]
+          }
+        },
+        emphasis: {
+          focus: 'self',
+          textStyle: {
+            textShadowBlur: 14,
+            textShadowColor: 'rgba(56, 189, 248, 0.75)'
+          }
+        },
+        data: data.map(item => ({
+          name: item.name,
+          value: item.value,
+          category: item.category
+        }))
+      }
+    ]
+  }, true)
+}
+
+// 1.2 学科门类分布 (Pie)
+const renderCategoryChart = (data: CategoryDistributionItem[]) => {
+  if (!leftChartRef.value) return
+  if (!leftChart) {
+    leftChart = echarts.init(leftChartRef.value)
+  }
+  const theme = getChartTheme()
+  const colors = ['#0ea5e9', '#3b82f6', '#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f43f5e', '#06b6d4']
+
+  leftChart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}门类<br/>开设专业统计: <strong>{c} 个</strong> ({d}%)',
+      ...theme.tooltip
+    },
+    legend: {
+      type: 'scroll',
+      orient: 'vertical',
+      right: 15,
+      top: 'middle',
+      textStyle: { color: theme.textColor, fontSize: 12 },
+      pageTextStyle: { color: theme.textColor }
+    },
+    series: [
+      {
+        name: '学科门类',
+        type: 'pie',
+        radius: ['38%', '72%'],
+        center: ['42%', '50%'],
+        avoidLabelOverlap: true,
+        itemStyle: {
+          borderRadius: 6,
+          borderColor: theme.isDark ? '#0d1629' : '#ffffff',
+          borderWidth: 2
+        },
+        label: {
+          show: true,
+          formatter: '{b}: {d}%',
+          color: theme.textColor,
+          fontSize: 11
+        },
+        labelLine: {
+          lineStyle: { color: theme.axisLineColor }
+        },
+        data: data.map((item, idx) => ({
+          name: item.name,
+          value: item.value,
+          itemStyle: { color: colors[idx % colors.length] }
+        }))
+      }
+    ]
+  }, true)
+}
+
+// 2. 就业率 TOP10 横向柱状图
+const renderJobChart = (majors: string[], rates: number[]) => {
+  if (!jobChartRef.value) return
+  if (!jobChart) {
+    jobChart = echarts.init(jobChartRef.value)
+  }
+  const theme = getChartTheme()
+
+  jobChart.setOption({
+    grid: { top: 20, right: 55, bottom: 20, left: 110, containLabel: false },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      ...theme.tooltip
+    },
     xAxis: {
       type: 'value',
       max: 100,
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      splitLine: { lineStyle: { color: theme.splitLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'category',
       data: majors,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      inverse: true,
+      axisLine: { lineStyle: { color: theme.axisLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     series: [{
       type: 'bar',
       data: rates,
       itemStyle: {
-        color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [
-          { offset: 0, color: '#00ffaa' },
-          { offset: 1, color: '#1089ff' }
+        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+          { offset: 0, color: '#38bdf8' },
+          { offset: 1, color: '#10b981' }
         ]),
         borderRadius: [0, 4, 4, 0]
       },
-      label: { show: true, position: 'right', formatter: '{c}%', color: '#fff', fontSize: 11 }
+      label: {
+        show: true,
+        position: 'right',
+        formatter: '{c}%',
+        color: theme.textColor,
+        fontSize: 11
+      }
     }]
-  })
+  }, true)
 }
 
 // 3. 新兴专业新增走势
-const initTrendChart = (years: string[], seriesData: Array<{ name: string; data: number[] }>) => {
-  const chart = registerChart(trendChartRef.value)
-  if (!chart) return
+const renderTrendChart = (years: string[], seriesData: Array<{ name: string; data: number[] }>) => {
+  if (!trendChartRef.value) return
+  if (!trendChart) {
+    trendChart = echarts.init(trendChartRef.value)
+  }
+  const theme = getChartTheme()
+  const colors = ['#0ea5e9', '#10b981', '#f59e0b']
 
-  const colors = ['#00e5ff', '#00ffaa', '#faad14']
-  chart.setOption({
-    ...baseChartStyle,
-    tooltip: { trigger: 'axis' },
-    legend: { textStyle: { color: '#8ba2d4' }, top: 5 },
+  trendChart.setOption({
+    grid: { top: 35, right: 30, bottom: 25, left: 45 },
+    tooltip: { trigger: 'axis', ...theme.tooltip },
+    legend: {
+      textStyle: { color: theme.textColor },
+      top: 5
+    },
     xAxis: {
       type: 'category',
       data: years,
-      axisLine: { lineStyle: { color: '#4a5b7d' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      axisLine: { lineStyle: { color: theme.axisLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     yAxis: {
       type: 'value',
-      name: '开设院校数',
-      splitLine: { lineStyle: { color: 'rgba(255,255,255,0.08)' } },
-      axisLabel: { color: '#8ba2d4', fontSize: 11 }
+      name: '开设院校数 (所)',
+      nameTextStyle: { color: theme.textColor },
+      splitLine: { lineStyle: { color: theme.splitLineColor } },
+      axisLabel: { color: theme.textColor, fontSize: 11 }
     },
     series: seriesData.map((item, idx) => ({
       name: item.name,
@@ -187,88 +315,164 @@ const initTrendChart = (years: string[], seriesData: Array<{ name: string; data:
         ])
       }
     }))
-  })
-}
-
-const loadData = async () => {
-  // 1. 重点省份与主要学科门类开设热力分布
-  const heatmapData: Array<[number, number, number]> = []
-  const baseScores = [
-    [98, 99, 95, 92, 98, 97, 96], // 北京
-    [99, 92, 94, 90, 91, 93, 88], // 江苏
-    [95, 88, 93, 89, 87, 96, 90], // 广东
-    [94, 85, 89, 88, 83, 84, 87], // 山东
-    [86, 80, 86, 91, 81, 78, 82], // 河南
-    [92, 89, 88, 90, 85, 87, 85], // 湖北
-    [90, 86, 92, 84, 86, 92, 92], // 浙江
-    [88, 82, 84, 89, 83, 82, 88], // 四川
-    [91, 87, 82, 83, 85, 80, 81], // 陕西
-    [87, 81, 79, 82, 80, 75, 76]  // 辽宁
-  ]
-  baseScores.forEach((row, pIdx) => {
-    row.forEach((score, dIdx) => {
-      heatmapData.push([pIdx, dIdx, score])
-    })
-  })
-  initHeatmapChart(heatmapData)
-
-  // 2. 就业率 TOP10
-  let majors = ['自动化', '数字媒体', '通信工程', 'AI', '物联网', '计算机', '微电子', '网络工程', '软件工程', '信息安全']
-  let rates = [89, 90, 91, 92, 92, 93, 94, 95, 96, 97]
-  try {
-    const res = await getEmploymentTop10()
-    if (res && res.majors) {
-      majors = res.majors
-      rates = res.rates
-    }
-  } catch {}
-  initJobChart(majors, rates)
-
-  // 3. 新兴专业新增走势
-  let years = ['2019', '2020', '2021', '2022', '2023', '2024']
-  let series = [
-    { name: '人工智能', data: [35, 180, 130, 95, 80, 60] },
-    { name: '数据科学', data: [20, 50, 100, 150, 120, 90] }
-  ]
-  try {
-    const res = await getNewEmergingTrend()
-    if (res && res.years) {
-      years = res.years
-      series = res.series
-    }
-  } catch {}
-  initTrendChart(years, series)
+  }, true)
 }
 
 const handleResize = () => {
-  chartInstances.forEach(c => c.resize())
+  leftChart?.resize()
+  jobChart?.resize()
+  trendChart?.resize()
+}
+
+const rerenderAllCharts = () => {
+  if (viewMode.value === 'wordcloud' && cachedWordCloudData.length) {
+    renderWordCloudChart(cachedWordCloudData)
+  } else if (viewMode.value === 'category' && cachedCategoryData.length) {
+    renderCategoryChart(cachedCategoryData)
+  }
+  if (cachedJobMajors.length) renderJobChart(cachedJobMajors, cachedJobRates)
+  if (cachedTrendYears.length) renderTrendChart(cachedTrendYears, cachedTrendSeries)
+}
+
+const loadData = async () => {
+  majorLoad.start()
+  try {
+    const [wordRes, catRes, jobRes, trendRes] = await Promise.all([
+      getHotWordCloud(),
+      getCategoryDistribution(),
+      getEmploymentTop10(),
+      getNewEmergingTrend()
+    ])
+
+    if (!wordRes?.length || !catRes?.length || !jobRes?.majors?.length || !trendRes?.years?.length) {
+      majorLoad.succeed(true)
+      return
+    }
+
+    cachedWordCloudData = wordRes
+    cachedCategoryData = catRes
+    cachedJobMajors = jobRes.majors
+    cachedJobRates = jobRes.rates
+    cachedTrendYears = trendRes.years
+    cachedTrendSeries = trendRes.series
+
+    if (viewMode.value === 'wordcloud') renderWordCloudChart(cachedWordCloudData)
+    if (viewMode.value === 'category') renderCategoryChart(cachedCategoryData)
+    renderJobChart(cachedJobMajors, cachedJobRates)
+    renderTrendChart(cachedTrendYears, cachedTrendSeries)
+    majorLoad.succeed(false)
+  } catch (error) {
+    console.error('Failed to load major analysis data:', error)
+    cachedWordCloudData = []
+    cachedCategoryData = []
+    cachedJobMajors = []
+    cachedJobRates = []
+    cachedTrendYears = []
+    cachedTrendSeries = []
+    majorLoad.fail('专业分析数据加载失败，请确认后端服务可用。')
+  }
 }
 
 onMounted(() => {
   nextTick(() => {
     loadData()
+    window.addEventListener('resize', handleResize)
+    unregisterTheme = onThemeChange(() => {
+      nextTick(() => {
+        rerenderAllCharts()
+      })
+    })
   })
-  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  chartInstances.forEach(c => c.dispose())
-  chartInstances.length = 0
+  if (unregisterTheme) unregisterTheme()
+  leftChart?.dispose()
+  jobChart?.dispose()
+  trendChart?.dispose()
 })
 </script>
 
 <style scoped lang="scss">
 .analysis-layout {
-  width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: 100%;
+  width: 100%;
 }
+
+.data-status {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
+}
+
 .analysis-row {
   display: flex;
   gap: 12px;
   flex: 1;
+}
+
+.mode-switch-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.mode-btn {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: #94a3b8;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+
+  &:hover {
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.6);
+    background: rgba(56, 189, 248, 0.1);
+  }
+
+  &.active {
+    color: #0f172a;
+    background: #38bdf8;
+    border-color: #38bdf8;
+    font-weight: 600;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  }
+}
+
+html.light {
+  .mode-btn {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #475569 !important;
+    &:hover {
+      color: #0284c7 !important;
+      border-color: #7dd3fc !important;
+      background: #e0f2fe !important;
+    }
+    &.active {
+      color: #ffffff !important;
+      background: #0284c7 !important;
+      border-color: #0284c7 !important;
+      box-shadow: 0 0 10px rgba(2, 132, 199, 0.3) !important;
+    }
+  }
 }
 </style>

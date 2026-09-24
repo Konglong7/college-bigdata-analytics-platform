@@ -13,4 +13,8 @@ public interface MajorService extends IService<Major> {
     Map<String, Object> getEmploymentTop10();
 
     Map<String, Object> getNewEmergingTrend();
+
+    List<Map<String, Object>> getCategoryDistribution();
+    List<Map<String, Object>> getHotWordCloud();
 }
+

@@ -1,5 +1,12 @@
 <template>
   <div class="admin-page">
+    <div v-if="adminLoad.state.value === 'error'" class="data-status error-status">
+      {{ adminLoad.errorMessage.value }}
+      <button class="dv-btn" @click="loadData">重试</button>
+    </div>
+    <div v-else-if="adminLoad.state.value === 'empty'" class="data-status">
+      当前筛选条件没有可管理的高校数据。
+    </div>
     <div class="dv-border-box admin-layout">
       <div class="corner-bottom-left"></div>
       <div class="corner-bottom-right"></div>
@@ -380,6 +387,7 @@ import {
   UniversityFormData
 } from '@/api/admin'
 import { UniversityCard, UniversityQuery } from '@/api/university'
+import { createLoadState } from '@/utils/loadState'
 
 const menus = [
   { name: '高校基础数据管理', icon: '🏫' },
@@ -400,6 +408,7 @@ const queryParams = reactive<UniversityQuery>({
 
 const tableData = ref<UniversityCard[]>([])
 const total = ref(0)
+const adminLoad = createLoadState()
 
 const dialogVisible = ref(false)
 const isEdit = ref(false)
@@ -413,21 +422,6 @@ const formData = reactive<UniversityFormData>({
   introduction: ''
 })
 
-const defaultMockList: UniversityCard[] = [
-  { id: 1, schoolName: '北京大学', province: '北京', city: '北京', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1898 },
-  { id: 2, schoolName: '清华大学', province: '北京', city: '北京', schoolLevel: '985/211', schoolType: '理工类', establishYear: 1911 },
-  { id: 3, schoolName: '浙江大学', province: '浙江', city: '杭州', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1897 },
-  { id: 4, schoolName: '复旦大学', province: '上海', city: '上海', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1905 },
-  { id: 5, schoolName: '南京大学', province: '江苏', city: '南京', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1902 },
-  { id: 6, schoolName: '武汉大学', province: '湖北', city: '武汉', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1893 },
-  { id: 7, schoolName: '四川大学', province: '四川', city: '成都', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1896 },
-  { id: 8, schoolName: '中山大学', province: '广东', city: '广州', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1924 },
-  { id: 9, schoolName: '哈尔滨工业大学', province: '黑龙江', city: '哈尔滨', schoolLevel: '985/211', schoolType: '理工类', establishYear: 1920 },
-  { id: 10, schoolName: '深圳大学', province: '广东', city: '深圳', schoolLevel: '普通本科', schoolType: '综合类', establishYear: 1983 },
-  { id: 11, schoolName: '苏州大学', province: '江苏', city: '苏州', schoolLevel: '211工程', schoolType: '综合类', establishYear: 1900 },
-  { id: 12, schoolName: '电子科技大学', province: '四川', city: '成都', schoolLevel: '985/211', schoolType: '理工类', establishYear: 1956 }
-]
-
 // 模拟扩展数据（为其它6大管理模块提供完整的专业展示）
 const majorList = ref([
   { code: '080901', name: '计算机科学与技术', category: '工学', years: '4年', degree: '工学学士', schoolCount: 980, isKey: true },
@@ -439,11 +433,11 @@ const majorList = ref([
 ])
 
 const enrollRecords = ref([
-  { id: 1, year: '2024', school: '北京大学', province: '河南', type: '理科', plan: 85, score: 698, diff: 185 },
-  { id: 2, year: '2024', school: '清华大学', province: '河南', type: '理科', plan: 80, score: 699, diff: 186 },
-  { id: 3, year: '2024', school: '浙江大学', province: '浙江', type: '综合改革', plan: 320, score: 668, diff: 172 },
-  { id: 4, year: '2024', school: '复旦大学', province: '上海', type: '综合改革', plan: 150, score: 585, diff: 180 },
-  { id: 5, year: '2024', school: '四川大学', province: '四川', type: '理科', plan: 450, score: 635, diff: 125 }
+  { id: 1, year: '2026', school: '北京大学', province: '河南', type: '理科', plan: 90, score: 701, diff: 188 },
+  { id: 2, year: '2026', school: '清华大学', province: '河南', type: '理科', plan: 85, score: 702, diff: 189 },
+  { id: 3, year: '2025', school: '浙江大学', province: '浙江', type: '综合改革', plan: 330, score: 671, diff: 174 },
+  { id: 4, year: '2025', school: '复旦大学', province: '上海', type: '综合改革', plan: 155, score: 588, diff: 182 },
+  { id: 5, year: '2025', school: '四川大学', province: '四川', type: '理科', plan: 460, score: 638, diff: 127 }
 ])
 
 const spiderTasks = ref([
@@ -474,19 +468,22 @@ const userList = ref([
 ])
 
 const loadData = async () => {
+  adminLoad.start()
   try {
     const res = await getAdminUniversityPage(queryParams)
     if (res && res.records !== undefined) {
       tableData.value = res.records
       total.value = res.total ?? 0
+      adminLoad.succeed(tableData.value.length === 0)
       return
     }
+    adminLoad.succeed(true)
   } catch (err) {
     console.error('Failed to load admin universities:', err)
+    tableData.value = []
+    total.value = 0
+    adminLoad.fail('管理员高校数据加载失败，请确认账号权限和后端服务状态。')
   }
-  let filtered = defaultMockList.filter(u => !queryParams.schoolName || u.schoolName.includes(queryParams.schoolName) || u.province.includes(queryParams.schoolName))
-  tableData.value = filtered
-  total.value = filtered.length
 }
 
 const handleSearch = () => {
@@ -580,13 +577,17 @@ const handleDelete = (id: number) => {
 }
 
 const handleBatchImport = () => {
-  ElMessage.info('已开启批量 Excel / CSV 导入解析通道，支持标准模版批量写入')
+  ElMessage.info('批量 Excel / CSV 导入属于后续扩展，本阶段未启用写入通道')
 }
 
 const handleExportExcel = () => {
+  if (!tableData.value.length) {
+    ElMessage.warning('当前没有已加载的高校数据，无法导出')
+    return
+  }
   // 生成标准 CSV 并提供下载
   const headers = ['ID', '高校名称', '省份', '城市', '办学层次', '学校类型', '成立年份']
-  const rows = (tableData.value.length ? tableData.value : defaultMockList).map(u => [
+  const rows = tableData.value.map(u => [
     u.id,
     `"${u.schoolName}"`,
     `"${u.province}"`,
@@ -603,7 +604,7 @@ const handleExportExcel = () => {
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  ElMessage.success('高校报表导出成功！已开始自动下载')
+  ElMessage.success('高校 CSV 报表导出成功！已开始自动下载')
 }
 
 onMounted(() => {
@@ -615,6 +616,23 @@ onMounted(() => {
 .admin-page {
   width: 100%;
   height: 100%;
+}
+
+.data-status {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
 }
 
 .admin-layout {
@@ -810,5 +828,58 @@ onMounted(() => {
   justify-content: flex-end;
   padding: 10px 0;
   flex-shrink: 0;
+}
+
+html.light {
+  .admin-sidebar {
+    border-right-color: #e2e8f0 !important;
+    .sidebar-title {
+      color: #0284c7 !important;
+      border-bottom-color: #e2e8f0 !important;
+    }
+  }
+  .admin-menu-item {
+    color: #475569 !important;
+    &:hover, &.active {
+      color: #0284c7 !important;
+      background: #e0f2fe !important;
+      border-left-color: #0284c7 !important;
+      text-shadow: none !important;
+    }
+  }
+  .el-table {
+    th {
+      background: #f8fafc !important;
+      color: #0f172a !important;
+      border-bottom: 2px solid #cbd5e1 !important;
+      font-weight: 600;
+    }
+    td {
+      color: #0f172a !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+    }
+    tr:hover td {
+      background: #f1f5f9 !important;
+    }
+  }
+  .tag-985 {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border-color: #fde68a !important;
+  }
+  .tag-type {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-color: #bae6fd !important;
+  }
+  .btn-edit {
+    color: #0284c7 !important;
+    border-color: #7dd3fc !important;
+    background: #f0f9ff !important;
+    &:hover {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+    }
+  }
 }
 </style>

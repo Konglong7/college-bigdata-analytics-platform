@@ -33,3 +33,30 @@ export const getNewEmergingTrend = () => {
     method: 'get'
   })
 }
+
+export interface CategoryDistributionItem {
+  name: string
+  value: number
+}
+
+export const getCategoryDistribution = () => {
+  return request<any, CategoryDistributionItem[]>({
+    url: '/major/category-distribution',
+    method: 'get'
+  })
+}
+
+export interface HotWordCloudItem {
+  name: string
+  value: number
+  category?: string
+}
+
+export const getHotWordCloud = () => {
+  return request<any, HotWordCloudItem[]>({
+    url: '/major/wordcloud',
+    method: 'get'
+  })
+}
+
+

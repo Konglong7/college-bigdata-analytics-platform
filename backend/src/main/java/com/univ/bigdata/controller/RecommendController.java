@@ -4,6 +4,7 @@ import com.univ.bigdata.common.api.Result;
 import com.univ.bigdata.dto.RecommendQueryDto;
 import com.univ.bigdata.service.RecommendService;
 import com.univ.bigdata.vo.RecommendResultVo;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,7 +16,7 @@ public class RecommendController {
     private final RecommendService recommendService;
 
     @PostMapping("/match")
-    public Result<RecommendResultVo> matchVolunteers(@RequestBody RecommendQueryDto queryDto) {
+    public Result<RecommendResultVo> matchVolunteers(@Valid @RequestBody RecommendQueryDto queryDto) {
         RecommendResultVo result = recommendService.recommendVolunteers(queryDto);
         return Result.success(result);
     }

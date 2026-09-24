@@ -7,6 +7,7 @@ import com.univ.bigdata.dto.UniversityQueryDto;
 import com.univ.bigdata.service.UniversityService;
 import com.univ.bigdata.vo.UniversityCardVo;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,7 +19,7 @@ public class AdminController {
     private final UniversityService universityService;
 
     @GetMapping("/university/page")
-    public Result<Page<UniversityCardVo>> pageUniversities(UniversityQueryDto queryDto) {
+    public Result<Page<UniversityCardVo>> pageUniversities(@Valid UniversityQueryDto queryDto) {
         Page<UniversityCardVo> page = universityService.pageUniversities(queryDto);
         return Result.success(page);
     }
@@ -36,7 +37,7 @@ public class AdminController {
     }
 
     @DeleteMapping("/university/{id}")
-    public Result<Void> deleteUniversity(@PathVariable("id") Long id) {
+    public Result<Void> deleteUniversity(@PathVariable("id") @Positive(message = "高校ID必须为正数") Long id) {
         universityService.deleteUniversity(id);
         return Result.success("删除高校成功", null);
     }

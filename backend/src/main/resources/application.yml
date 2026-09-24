@@ -8,9 +8,9 @@ spring:
     name: univ-bigdata-backend
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/univ_bigdata_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/univ_bigdata_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: GMT+8
@@ -20,7 +20,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
   global-config:
     db-config:
       id-type: auto
@@ -29,7 +29,7 @@ mybatis-plus:
 # JWT 鉴权配置
 jwt:
   # 至少 256 位的 Base64 密钥
-  secret: dW5pdi1iaWdkYXRhLW5hdGlvbmFsLWNvbGxlZ2UtYW5hbHlzaXMtMjAyNg==
+  secret: ${JWT_SECRET:local-development-secret-change-me}
   # 过期时间 (毫秒)，默认 7 天: 7 * 24 * 60 * 60 * 1000 = 604800000
   expiration: 604800000
   header: Authorization

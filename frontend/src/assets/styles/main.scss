@@ -1,26 +1,43 @@
-:root {
+/* =========================================================
+   全局双模主题设计系统 (Dark / Light Dual Theme Tokens)
+========================================================= */
+
+:root, html.dark {
   --bg-main: #070c18;
-  --bg-panel: rgba(13, 22, 41, 0.75);
-  --bg-panel-hover: rgba(18, 30, 56, 0.85);
+  --bg-panel: rgba(13, 22, 41, 0.85);
+  --bg-panel-hover: rgba(18, 30, 56, 0.9);
+  --bg-card-gradient: linear-gradient(135deg, rgba(17, 28, 53, 0.85) 0%, rgba(10, 16, 31, 0.75) 100%);
   --border-color: rgba(56, 189, 248, 0.2);
   --border-color-hover: rgba(56, 189, 248, 0.55);
   --border-color-subtle: rgba(255, 255, 255, 0.07);
+  
   --primary-color: #00f0ff;
   --primary-light: #38bdf8;
   --secondary-color: #3b82f6;
   --accent-indigo: #6366f1;
+  
   --text-main: #f8fafc;
   --text-sub: #94a3b8;
   --text-muted: #64748b;
+  
+  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  --card-shadow-hover: 0 8px 28px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(56, 189, 248, 0.25);
+  
+  --input-bg: rgba(10, 18, 36, 0.75);
+  --dialog-bg: rgba(13, 22, 41, 0.96);
+  --dropdown-bg: rgba(13, 22, 41, 0.96);
+  --table-stripe: rgba(255, 255, 255, 0.02);
+  --header-bg: rgba(10, 17, 33, 0.88);
+  --header-border: rgba(56, 189, 248, 0.16);
+
   --danger: #f43f5e;
   --success: #10b981;
   --warning: #f59e0b;
   --header-height: 66px;
   --card-radius: 8px;
   --font-mono: 'DIN Alternate', 'JetBrains Mono', 'Roboto Mono', 'SF Pro Display', -apple-system, monospace;
-}
 
-html.dark {
+  /* Element Plus Dark Vars */
   --el-color-primary: #38bdf8;
   --el-color-primary-light-3: #67e8f9;
   --el-color-primary-light-5: #a5f3fc;
@@ -41,12 +58,72 @@ html.dark {
   --el-border-color: rgba(56, 189, 248, 0.2);
   --el-border-color-light: rgba(56, 189, 248, 0.12);
   --el-border-color-lighter: rgba(255, 255, 255, 0.06);
-  --el-border-color-extra-light: rgba(255, 255, 255, 0.03);
 
   --el-fill-color: rgba(56, 189, 248, 0.08);
   --el-fill-color-light: rgba(56, 189, 248, 0.05);
   --el-fill-color-blank: rgba(10, 17, 33, 0.85);
   --el-mask-color: rgba(7, 12, 24, 0.75);
+}
+
+/* 浅色学术/政企白主题 (Light Theme) */
+html.light {
+  --bg-main: #f1f5f9;
+  --bg-panel: #ffffff;
+  --bg-panel-hover: #f8fafc;
+  --bg-card-gradient: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  --border-color: rgba(203, 213, 225, 0.85);
+  --border-color-hover: rgba(14, 165, 233, 0.8);
+  --border-color-subtle: rgba(0, 0, 0, 0.06);
+  
+  --primary-color: #0284c7;
+  --primary-light: #0ea5e9;
+  --secondary-color: #2563eb;
+  --accent-indigo: #4f46e5;
+  
+  --text-main: #0f172a;
+  --text-sub: #475569;
+  --text-muted: #94a3b8;
+  
+  --card-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --card-shadow-hover: 0 10px 24px -4px rgba(14, 165, 233, 0.15), 0 4px 6px -2px rgba(15, 23, 42, 0.05);
+  
+  --input-bg: #ffffff;
+  --dialog-bg: #ffffff;
+  --dropdown-bg: #ffffff;
+  --table-stripe: rgba(241, 245, 249, 0.6);
+  --header-bg: rgba(255, 255, 255, 0.92);
+  --header-border: rgba(226, 232, 240, 0.95);
+
+  --danger: #e11d48;
+  --success: #059669;
+  --warning: #d97706;
+
+  /* Element Plus Light Vars */
+  --el-color-primary: #0284c7;
+  --el-color-primary-light-3: #38bdf8;
+  --el-color-primary-light-5: #7dd3fc;
+  --el-color-primary-light-7: #bae6fd;
+  --el-color-primary-light-8: #e0f2fe;
+  --el-color-primary-light-9: #f0f9ff;
+  --el-color-primary-dark-2: #0369a1;
+
+  --el-bg-color: #ffffff;
+  --el-bg-color-overlay: #ffffff;
+  --el-bg-color-page: #f1f5f9;
+  
+  --el-text-color-primary: #0f172a;
+  --el-text-color-regular: #475569;
+  --el-text-color-secondary: #94a3b8;
+  --el-text-color-placeholder: rgba(148, 163, 184, 0.7);
+
+  --el-border-color: #cbd5e1;
+  --el-border-color-light: #e2e8f0;
+  --el-border-color-lighter: #f1f5f9;
+
+  --el-fill-color: #f1f5f9;
+  --el-fill-color-light: #f8fafc;
+  --el-fill-color-blank: #ffffff;
+  --el-mask-color: rgba(15, 23, 42, 0.4);
 }
 
 * {
@@ -72,26 +149,39 @@ body {
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+html.light body {
+  background-color: #f1f5f9;
+  background-image: 
+    radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 90% 70%, rgba(99, 102, 241, 0.05) 0%, transparent 45%),
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
 }
 
 ul { list-style: none; }
 a { text-decoration: none; color: inherit; }
 
-/* 自定义科技感细滚动条 */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+/* 自定义细滚动条 */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { 
-  background: rgba(56, 189, 248, 0.25); 
+  background: rgba(56, 189, 248, 0.3); 
   border-radius: 4px; 
   transition: background 0.2s;
+}
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
 }
 ::-webkit-scrollbar-thumb:hover { 
   background: var(--primary-light); 
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
 }
-::-webkit-scrollbar-track { background: rgba(7, 12, 24, 0.4); }
+::-webkit-scrollbar-track { background: transparent; }
 
 /* =========================================================
-   组件模块: 现代微质感玻璃卡片 (.dv-border-box)
+   组件模块: 现代微质感卡片 (.dv-border-box)
 ========================================================= */
 .dv-border-box {
   position: relative;
@@ -103,12 +193,12 @@ a { text-decoration: none; color: inherit; }
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
-  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+  box-shadow: var(--card-shadow);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease, background 0.3s ease;
 
   &:hover {
     border-color: var(--border-color-hover);
-    box-shadow: 0 8px 28px -4px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(56, 189, 248, 0.25);
+    box-shadow: var(--card-shadow-hover);
   }
 }
 
@@ -123,10 +213,10 @@ a { text-decoration: none; color: inherit; }
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.4px;
-  color: #f1f5f9;
+  color: var(--text-main);
   margin-bottom: 10px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--border-color-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -140,7 +230,7 @@ a { text-decoration: none; color: inherit; }
     background: linear-gradient(180deg, var(--primary-color), var(--secondary-color));
     border-radius: 2px;
     margin-right: 8px;
-    box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+    box-shadow: 0 0 8px rgba(14, 165, 233, 0.4);
   }
 }
 
@@ -155,7 +245,7 @@ a { text-decoration: none; color: inherit; }
 .stat-banner {
   display: flex;
   gap: 14px;
-  height: 84px;
+  height: 88px;
   flex-shrink: 0;
 }
 .stat-card {
@@ -163,17 +253,25 @@ a { text-decoration: none; color: inherit; }
   display: flex;
   flex-direction: row;
   align-items: center;
-  padding: 0 20px;
-  background: linear-gradient(135deg, rgba(17, 28, 53, 0.85) 0%, rgba(10, 16, 31, 0.75) 100%);
+  padding: 0 18px;
+  background: var(--bg-card-gradient);
   border: 1px solid var(--border-color);
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--card-shadow);
   border-radius: var(--card-radius);
   transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
 
   &:hover {
     transform: translateY(-2px);
     border-color: var(--border-color-hover);
-    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.15);
+    box-shadow: var(--card-shadow-hover);
+  }
+
+  .card-content {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    height: 100% !important;
+    width: 100% !important;
   }
 }
 .stat-icon {
@@ -186,9 +284,8 @@ a { text-decoration: none; color: inherit; }
   justify-content: center;
   color: var(--primary-light);
   margin-right: 16px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  border: 1px solid var(--border-color);
   flex-shrink: 0;
-  box-shadow: 0 0 12px rgba(56, 189, 248, 0.12);
 }
 .stat-info { 
   flex: 1; 
@@ -204,7 +301,7 @@ a { text-decoration: none; color: inherit; }
 .stat-value { 
   font-size: 26px; 
   font-weight: 700; 
-  color: #ffffff; 
+  color: var(--text-main); 
   font-family: var(--font-mono);
   letter-spacing: -0.5px;
   line-height: 1;
@@ -221,7 +318,7 @@ a { text-decoration: none; color: inherit; }
    通用精美表单控件 (.dv-input, .dv-select, .dv-btn)
 ========================================================= */
 .dv-input, .dv-select {
-  background: rgba(10, 18, 36, 0.65);
+  background: var(--input-bg);
   border: 1px solid var(--border-color);
   color: var(--text-main);
   padding: 7px 12px;
@@ -241,24 +338,26 @@ a { text-decoration: none; color: inherit; }
 
   &:focus {
     border-color: var(--primary-light);
-    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-    background: rgba(10, 18, 36, 0.85);
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
   }
 }
 
 .dv-select {
   cursor: pointer;
   option {
-    background: #0d1629;
-    color: #f8fafc;
+    background: var(--bg-panel);
+    color: var(--text-main);
   }
 }
 
+/* =========================================================
+   全局动态色彩按钮与交互体系 (Dynamic Color Design for Dark & Light)
+========================================================= */
 .dv-btn {
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%);
-  border: 1px solid rgba(56, 189, 248, 0.5);
-  color: #e0f2fe;
-  padding: 7px 18px;
+  border: 1px solid var(--primary-light);
+  color: var(--text-main);
+  padding: 7px 16px;
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
@@ -271,49 +370,168 @@ a { text-decoration: none; color: inherit; }
 
   &:hover {
     background: linear-gradient(135deg, rgba(14, 165, 233, 0.45) 0%, rgba(59, 130, 246, 0.45) 100%);
-    border-color: var(--primary-light);
-    color: #ffffff;
-    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.35);
   }
 
   &:active {
     transform: scale(0.98);
   }
-}
 
-.dv-btn.btn-reset {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.12);
-  color: var(--text-sub);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
     box-shadow: none;
   }
 }
 
+html.dark .dv-btn {
+  color: #e0f2fe;
+}
+
+html.light .dv-btn {
+  color: #0284c7;
+  background: #f0f9ff;
+  border-color: #7dd3fc;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+
+  &:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+  }
+}
+
+.dv-btn.btn-reset {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: var(--border-color);
+  color: var(--text-sub);
+
+  &:hover {
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--text-main);
+    box-shadow: none;
+  }
+}
+
+html.light .dv-btn.btn-reset {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+
+  &:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+}
+
+/* 导出与特殊操作按钮动态色彩 */
+.dv-btn.btn-export,
+.dv-btn.btn-export-doc,
+.dv-btn.btn-export-compare {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: var(--success);
+
+  &:hover {
+    background: var(--success);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+  }
+}
+
+html.light .dv-btn.btn-export,
+html.light .dv-btn.btn-export-doc,
+html.light .dv-btn.btn-export-compare {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #15803d;
+
+  &:hover {
+    background: #16a34a;
+    color: #ffffff;
+    border-color: #16a34a;
+    box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+  }
+}
+
+/* 表格内操作小按钮动态色彩 */
+.action-btn {
+  padding: 3px 8px;
+  font-size: 11.5px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+
+  &.btn-edit, &.btn-view {
+    background: rgba(14, 165, 233, 0.15);
+    color: var(--primary-light);
+    border-color: rgba(14, 165, 233, 0.3);
+
+    &:hover {
+      background: var(--primary-light);
+      color: #02091b;
+    }
+  }
+
+  &.btn-del {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+    border-color: rgba(239, 68, 68, 0.3);
+
+    &:hover {
+      background: var(--danger);
+      color: #ffffff;
+    }
+  }
+}
+
+html.light .action-btn {
+  &.btn-edit, &.btn-view {
+    background: #e0f2fe;
+    color: #0284c7;
+    border-color: #bae6fd;
+
+    &:hover {
+      background: #0284c7;
+      color: #ffffff;
+    }
+  }
+
+  &.btn-del {
+    background: #fee2e2;
+    color: #dc2626;
+    border-color: #fca5a5;
+
+    &:hover {
+      background: #dc2626;
+      color: #ffffff;
+    }
+  }
+}
+
 /* =========================================================
-   Element Plus 深度暗黑与现代高精定制
+   Element Plus 深度适配 (Dark & Light)
 ========================================================= */
 .el-dialog, .dark-dialog {
-  background: rgba(13, 22, 41, 0.96) !important;
+  background: var(--dialog-bg) !important;
   border: 1px solid var(--border-color) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(56, 189, 248, 0.15) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35) !important;
   backdrop-filter: blur(20px) !important;
   border-radius: var(--card-radius) !important;
 
   .el-dialog__header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--border-color-subtle);
     padding: 16px 20px;
     margin-right: 0;
   }
   .el-dialog__title {
-    color: #ffffff !important;
+    color: var(--text-main) !important;
     font-size: 15px;
     font-weight: 600;
-    letter-spacing: 0.5px;
   }
   .el-dialog__headerbtn .el-dialog__close {
     color: var(--text-sub);
@@ -326,20 +544,20 @@ a { text-decoration: none; color: inherit; }
     color: var(--text-main);
   }
   .el-dialog__footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--border-color-subtle);
     padding: 14px 20px;
   }
 }
 
 .el-message-box {
-  background: rgba(13, 22, 41, 0.96) !important;
+  background: var(--dialog-bg) !important;
   border: 1px solid var(--border-color) !important;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35) !important;
   backdrop-filter: blur(16px) !important;
   border-radius: var(--card-radius) !important;
   
   .el-message-box__title {
-    color: #ffffff !important;
+    color: var(--text-main) !important;
     font-weight: 600;
   }
   .el-message-box__content {
@@ -348,7 +566,7 @@ a { text-decoration: none; color: inherit; }
 }
 
 .el-select-dropdown__item.is-hovering {
-  background-color: rgba(56, 189, 248, 0.12) !important;
+  background-color: rgba(14, 165, 233, 0.12) !important;
   color: var(--primary-light) !important;
 }
 
@@ -358,8 +576,8 @@ a { text-decoration: none; color: inherit; }
   gap: 8px;
 
   .el-pager li {
-    background: rgba(13, 22, 41, 0.7) !important;
-    border: 1px solid var(--border-color-subtle);
+    background: var(--input-bg) !important;
+    border: 1px solid var(--border-color);
     color: var(--text-sub);
     border-radius: 6px;
     margin: 0 2px;
@@ -367,28 +585,26 @@ a { text-decoration: none; color: inherit; }
 
     &:hover {
       color: var(--primary-light);
-      border-color: var(--border-color);
+      border-color: var(--primary-light);
     }
     &.is-active {
-      background: rgba(56, 189, 248, 0.18) !important;
+      background: rgba(14, 165, 233, 0.18) !important;
       border-color: var(--primary-light);
       color: var(--primary-light);
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
     }
   }
 
   .btn-prev, .btn-next {
-    background: rgba(13, 22, 41, 0.7) !important;
-    border: 1px solid var(--border-color-subtle);
+    background: var(--input-bg) !important;
+    border: 1px solid var(--border-color);
     color: var(--text-sub);
     border-radius: 6px;
     &:hover:not(:disabled) {
       color: var(--primary-light);
-      border-color: var(--border-color);
+      border-color: var(--primary-light);
     }
     &:disabled {
       opacity: 0.35;
-      border-color: rgba(255, 255, 255, 0.05);
     }
   }
 
@@ -397,77 +613,35 @@ a { text-decoration: none; color: inherit; }
     font-size: 13px;
   }
 
-  .el-pagination__sizes {
-    margin-right: 4px;
-
-    .el-select {
-      --el-select-input-color: var(--text-main);
-    }
-
-    .el-select__wrapper {
-      background-color: rgba(13, 22, 41, 0.8) !important;
-      box-shadow: 0 0 0 1px var(--border-color) inset !important;
-      color: var(--text-main) !important;
-      border-radius: 6px;
-      font-size: 12.5px;
-      padding: 0 8px;
-
-      &:hover, &.is-focused {
-        box-shadow: 0 0 0 1px var(--primary-light) inset, 0 0 8px rgba(56, 189, 248, 0.25) !important;
-      }
-      .el-select__selected-item {
-        color: var(--primary-light) !important;
-      }
-      .el-select__caret {
-        color: var(--primary-light) !important;
-      }
-    }
-
-    .el-input__wrapper {
-      background: rgba(13, 22, 41, 0.8) !important;
-      box-shadow: 0 0 0 1px var(--border-color) inset !important;
-      color: var(--text-main) !important;
-      border-radius: 6px;
-    }
+  .el-pagination__sizes .el-select__wrapper {
+    background-color: var(--input-bg) !important;
+    box-shadow: 0 0 0 1px var(--border-color) inset !important;
+    color: var(--text-main) !important;
+    border-radius: 6px;
   }
 
   .el-pagination__jump {
     color: var(--text-sub) !important;
-    font-size: 13px;
-    margin-left: 8px;
-
-    .el-input {
-      width: 48px;
-    }
-
     .el-input__wrapper {
-      background: rgba(13, 22, 41, 0.8) !important;
+      background: var(--input-bg) !important;
       box-shadow: 0 0 0 1px var(--border-color) inset !important;
       border-radius: 6px;
-      padding: 0 4px;
-
-      &:hover, &.is-focus {
-        box-shadow: 0 0 0 1px var(--primary-light) inset, 0 0 8px rgba(56, 189, 248, 0.25) !important;
-      }
     }
-
     .el-input__inner {
-      color: var(--primary-light) !important;
+      color: var(--text-main) !important;
       text-align: center;
-      font-size: 13px;
     }
   }
 }
 
 .el-select__popper.el-popper {
-  background: rgba(13, 22, 41, 0.96) !important;
+  background: var(--dropdown-bg) !important;
   border: 1px solid var(--border-color) !important;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3) !important;
   border-radius: var(--card-radius);
 
   .el-popper__arrow::before {
-    background: #0d1629 !important;
+    background: var(--dropdown-bg) !important;
     border-color: var(--border-color) !important;
   }
 }

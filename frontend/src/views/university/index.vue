@@ -1,5 +1,12 @@
 <template>
   <div class="query-page">
+    <div v-if="universityLoad.state.value === 'error'" class="data-status error-status">
+      {{ universityLoad.errorMessage.value }}
+      <button class="dv-btn" @click="loadData">重试</button>
+    </div>
+    <div v-else-if="universityLoad.state.value === 'empty'" class="data-status">
+      当前筛选条件没有匹配的高校数据。
+    </div>
     <!-- 顶部条件筛选栏 -->
     <div class="dv-border-box query-filter-bar">
       
@@ -48,6 +55,7 @@
 
       <button class="dv-btn" @click="handleSearch">检索数据</button>
       <button class="dv-btn btn-reset" @click="handleReset">重置条件</button>
+      <button class="dv-btn btn-export" @click="handleExportList" title="导出当前筛选结果为 Excel / CSV 表格">📊 导出高校名单</button>
     </div>
 
     <!-- 高校卡片瀑布流列表 -->
@@ -127,6 +135,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { pageUniversities, UniversityCard, UniversityQuery } from '@/api/university'
+import { createLoadState } from '@/utils/loadState'
 
 const route = useRoute()
 const router = useRouter()
@@ -148,43 +157,25 @@ const queryParams = reactive<UniversityQuery>({
 
 const univList = ref<UniversityCard[]>([])
 const total = ref(0)
-
-const defaultMockList: UniversityCard[] = [
-  { id: 1, schoolName: '北京大学', province: '北京', city: '北京', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1898, department: '教育部' },
-  { id: 2, schoolName: '清华大学', province: '北京', city: '北京', schoolLevel: '985/211', schoolType: '理工类', establishYear: 1911, department: '教育部' },
-  { id: 3, schoolName: '浙江大学', province: '浙江', city: '杭州', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1897, department: '教育部' },
-  { id: 4, schoolName: '复旦大学', province: '上海', city: '上海', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1905, department: '教育部' },
-  { id: 5, schoolName: '南京大学', province: '江苏', city: '南京', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1902, department: '教育部' },
-  { id: 6, schoolName: '武汉大学', province: '湖北', city: '武汉', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1893, department: '教育部' },
-  { id: 7, schoolName: '四川大学', province: '四川', city: '成都', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1896, department: '教育部' },
-  { id: 8, schoolName: '中山大学', province: '广东', city: '广州', schoolLevel: '985/211', schoolType: '综合类', establishYear: 1924, department: '教育部' },
-  { id: 9, schoolName: '哈尔滨工业大学', province: '黑龙江', city: '哈尔滨', schoolLevel: '985/211', schoolType: '理工类', establishYear: 1920, department: '工业和信息化部' },
-  { id: 10, schoolName: '深圳大学', province: '广东', city: '深圳', schoolLevel: '普通本科', schoolType: '综合类', establishYear: 1983, department: '广东省教育厅' },
-  { id: 11, schoolName: '苏州大学', province: '江苏', city: '苏州', schoolLevel: '211工程', schoolType: '综合类', establishYear: 1900, department: '江苏省教育厅' },
-  { id: 12, schoolName: '电子科技大学', province: '四川', city: '成都', schoolLevel: '985/211', schoolType: '理工类', establishYear: 1956, department: '教育部' }
-]
+const universityLoad = createLoadState()
 
 const loadData = async () => {
+  universityLoad.start()
   try {
     const res = await pageUniversities(queryParams)
     if (res && res.records !== undefined) {
       univList.value = res.records
       total.value = res.total ?? 0
+      universityLoad.succeed(univList.value.length === 0)
       return
     }
+    universityLoad.succeed(true)
   } catch (err) {
     console.error('Failed to load universities:', err)
+    univList.value = []
+    total.value = 0
+    universityLoad.fail('高校查询接口加载失败，请确认后端服务可用。')
   }
-  // 仅在后端接口通信彻底失败时使用本地假数据兜底
-  let filtered = defaultMockList.filter(u => {
-    let matchName = !queryParams.schoolName || u.schoolName.includes(queryParams.schoolName)
-    let matchProv = !queryParams.province || u.province === queryParams.province
-    let matchLevel = !queryParams.schoolLevel || (u.schoolLevel && u.schoolLevel.includes(queryParams.schoolLevel))
-    let matchType = !queryParams.schoolType || u.schoolType === queryParams.schoolType
-    return matchName && matchProv && matchLevel && matchType
-  })
-  univList.value = filtered
-  total.value = filtered.length
 }
 
 const handleSearch = () => {
@@ -209,6 +200,48 @@ const addToCompare = (id: number) => {
   router.push({ path: '/compare', query: { addId: id } })
 }
 
+// 导出当前筛选的高校列表为 Excel (CSV)
+const handleExportList = () => {
+  if (!univList.value.length) {
+    ElMessage.warning('当前暂无高校数据可供导出')
+    return
+  }
+
+  const rows: string[] = [
+    ['高校编号', '高校名称', '所在省份', '城市', '办学层次', '办学类型', '成立年份', '主管部门', '官方网址', '掌上高考档案'].join(',')
+  ]
+
+  univList.value.forEach(u => {
+    rows.push([
+      u.id,
+      `"${(u.schoolName || '').replace(/"/g, '""')}"`,
+      u.province || '-',
+      u.city || '-',
+      u.schoolLevel || '普通本科',
+      u.schoolType || '综合类',
+      u.establishYear || '-',
+      `"${(u.department || '地方教育厅').replace(/"/g, '""')}"`,
+      u.schoolSite || '-',
+      u.gaokaoSite || '-'
+    ].join(','))
+  })
+
+  const csvContent = '\uFEFF' + rows.join('\r\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const provTag = queryParams.province ? `_${queryParams.province}` : ''
+  const levelTag = queryParams.schoolLevel ? `_${queryParams.schoolLevel}` : ''
+  a.download = `全国高校数据名录${provTag}${levelTag}_第${queryParams.page}页.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+
+  ElMessage.success(`已成功导出 ${univList.value.length} 所高校名录 CSV 报表！`)
+}
+
 onMounted(() => {
   if (route.query.province) {
     queryParams.province = route.query.province as string
@@ -226,12 +259,29 @@ onMounted(() => {
   gap: 12px;
 }
 
+.data-status {
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-sub);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.error-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--danger, #ff7875);
+}
+
 .query-filter-bar {
   display: flex;
-  gap: 18px;
+  gap: 14px;
   align-items: center;
-  padding: 10px 20px;
-  height: 60px;
+  padding: 10px 18px;
+  min-height: 54px;
+  height: auto;
   flex-shrink: 0;
   flex-wrap: wrap;
 }
@@ -288,6 +338,16 @@ onMounted(() => {
   color: var(--text-sub);
   &:hover {
     background: rgba(255, 255, 255, 0.2);
+    color: var(--text-main);
+  }
+}
+
+.btn-export {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+  &:hover {
+    background: #10b981;
     color: #fff;
   }
 }
@@ -298,6 +358,7 @@ onMounted(() => {
   padding: 6px 4px;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: minmax(185px, auto);
   gap: 16px;
   align-content: start;
 
@@ -313,7 +374,7 @@ onMounted(() => {
 }
 
 .univ-card {
-  background: linear-gradient(135deg, rgba(17, 28, 53, 0.85) 0%, rgba(10, 16, 31, 0.75) 100%);
+  background: var(--bg-card-gradient);
   border: 1px solid var(--border-color);
   border-radius: var(--card-radius);
   padding: 16px 18px;
@@ -326,12 +387,12 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 140px;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  min-height: 185px;
+  box-shadow: var(--card-shadow);
 
   &:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 16px rgba(56, 189, 248, 0.15);
+    box-shadow: var(--card-shadow-hover);
     border-color: var(--primary-light);
   }
   &::before {
@@ -357,7 +418,7 @@ onMounted(() => {
 .u-card-title {
   font-size: 15.5px;
   font-weight: 600;
-  color: #f8fafc;
+  color: var(--text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -413,7 +474,7 @@ onMounted(() => {
     }
 
     .info-value {
-      color: #e2e8f0;
+      color: var(--text-main);
       font-size: 12.5px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -428,7 +489,7 @@ onMounted(() => {
   gap: 8px;
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border-color-subtle);
 }
 
 .card-link-btn {
@@ -476,8 +537,8 @@ onMounted(() => {
 
 .btn-detail-mini {
   margin-left: auto;
-  color: #94a3b8;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: var(--text-sub);
+  border: 1px solid var(--border-color);
   &:hover {
     color: #ffffff;
     border-color: var(--primary-light);
@@ -516,5 +577,73 @@ onMounted(() => {
   justify-content: flex-end;
   padding: 8px 10px;
   flex-shrink: 0;
+}
+
+html.light {
+  .tag-985 {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+    border-color: #fde68a !important;
+  }
+  .tag-type {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-color: #bae6fd !important;
+  }
+  .btn-official-mini {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border-color: #bae6fd !important;
+    &:hover {
+      background: #0284c7 !important;
+      color: #ffffff !important;
+    }
+  }
+  .btn-gaokao-mini {
+    background: #fffbeb !important;
+    color: #b45309 !important;
+    border-color: #fde68a !important;
+    &:hover {
+      background: #b45309 !important;
+      color: #ffffff !important;
+    }
+  }
+  .btn-compare-mini {
+    background: #f5f3ff !important;
+    color: #6366f1 !important;
+    border-color: #ddd6fe !important;
+    &:hover {
+      background: #6366f1 !important;
+      color: #ffffff !important;
+    }
+  }
+  .btn-detail-mini {
+    background: #f8fafc !important;
+    color: #475569 !important;
+    border-color: #cbd5e1 !important;
+    &:hover {
+      background: #e0f2fe !important;
+      color: #0284c7 !important;
+      border-color: #0284c7 !important;
+    }
+  }
+  .btn-reset {
+    background: #f1f5f9 !important;
+    color: #475569 !important;
+    border-color: #cbd5e1 !important;
+    &:hover {
+      background: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+  }
+  .btn-export {
+    background: #ecfdf5 !important;
+    color: #059669 !important;
+    border-color: #a7f3d0 !important;
+    &:hover {
+      background: #059669 !important;
+      color: #ffffff !important;
+    }
+  }
 }
 </style>
